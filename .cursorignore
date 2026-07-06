@@ -1,0 +1,21 @@
+# 擋掉依賴套件與打包輸出
+node_modules/
+.next/
+dist/
+build/
+out/
+
+# 擋掉圖片與多媒體資產
+public/images/
+public/assets/
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.mp4
+
+# 擋掉日誌與鎖定檔
+*.log
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

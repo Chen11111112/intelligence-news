@@ -1,0 +1,78 @@
+{
+  "source": "The Conversation (US)",
+  "tags": [
+    {
+      "slug": "arts",
+      "label": "Arts + Culture",
+      "zh": "藝術與文化",
+      "topic": "Arts + Culture",
+      "feedUrl": "https://theconversation.com/us/arts/articles.atom",
+      "image": "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?q=80&w=745&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    },
+    {
+      "slug": "business",
+      "label": "Business & Economy",
+      "zh": "商業與經濟",
+      "topic": "Business & Economy",
+      "feedUrl": "https://theconversation.com/us/business/articles.atom",
+      "image": "https://images.unsplash.com/photo-1470082719408-b2843ab5c9ab?q=80&w=1633&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    },
+    {
+      "slug": "education",
+      "label": "Education",
+      "zh": "教育",
+      "topic": "Education",
+      "feedUrl": "https://theconversation.com/us/education/articles.atom",
+      "image": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=1920&q=90"
+    },
+    {
+      "slug": "environment",
+      "label": "Environment & Energy",
+      "zh": "環境與能源",
+      "topic": "Environment & Energy",
+      "feedUrl": "https://theconversation.com/us/environment/articles.atom",
+      "image": "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?q=80&w=1613&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    },
+    {
+      "slug": "ethics",
+      "label": "Ethics & Religion",
+      "zh": "倫理與宗教",
+      "topic": "Ethics & Religion",
+      "feedUrl": "https://theconversation.com/us/ethics/articles.atom",
+      "image": "https://images.unsplash.com/photo-1645821522708-898c52901a8c?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    },
+    {
+      "slug": "health",
+      "label": "Health",
+      "zh": "健康",
+      "topic": "Health",
+      "feedUrl": "https://theconversation.com/us/health/articles.atom",
+      "image": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1920&q=90"
+    },
+    {
+      "slug": "politics",
+      "label": "Politics & Society",
+      "zh": "政治與社會",
+      "topic": "Politics & Society",
+      "feedUrl": "https://theconversation.com/us/politics/articles.atom",
+      "image": "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    },
+    {
+      "slug": "technology",
+      "label": "Science & Tech",
+      "zh": "科學與科技",
+      "topic": "Science & Tech",
+      "feedUrl": "https://theconversation.com/us/technology/articles.atom",
+      "image": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1920&q=90"
+    },
+    {
+      "slug": "world",
+      "label": "World",
+      "zh": "國際",
+      "topic": "World",
+      "feedUrl": "https://theconversation.com/us/world/articles.atom",
+      "image": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1172&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    }
+  ],
+  "defaultSlugs": ["arts", "business"]
+}

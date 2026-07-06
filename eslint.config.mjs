@@ -13,6 +13,12 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {  "rules": {
+              
+    "@typescript-eslint/no-explicit-any": ["off"], // 關掉"不行:any"的規則
+    "eslint-disable react-hooks/set-state-in-effect": ["off"], // 關掉"不行在useEffect裡面setState"的規則
+    "@typescript-eslint/no-unused-vars": ["off"]
+  }}
 ]);
 
 export default eslintConfig;

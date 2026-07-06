@@ -1,0 +1,24 @@
+// app/login/page.tsx
+'use client';
+
+import { signIn } from "next-auth/react";
+import { LogIn } from "lucide-react";
+
+export default function Login() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-background">
+      <div className="ui-card p-8 shadow-md max-w-sm w-full text-center space-y-6">
+        <h2 className="text-2xl font-bold ui-heading">歡迎回到 News App</h2>
+        <p className="ui-muted text-sm">請選擇一種方式登入以儲存你的 AI 學習進度</p>
+
+        <button
+          onClick={() => signIn("google", { redirectTo: "/profile" })}
+          className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-600 text-slate-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-700 active:scale-[0.99] transition shadow-sm"
+        >
+          <LogIn size={18} />
+          <span>使用 Google 帳號登入</span>
+        </button>
+      </div>
+    </main>
+  );
+}

@@ -1,36 +1,23 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+npm install @google/genai
 
-## Getting Started
+# 首次：安裝 Python 依賴
+npm run crawl:setup
 
-First, run the development server:
+# 從 The Conversation (US) 更新新聞（依 Profile 標籤或 data/crawl-config.json）
+npm run crawl
 
-```bash
+# 啟動開發伺服器
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+npm install mongodb @auth/mongodb-adapter
+npm install @auth/mongodb-adapter mongodb@^6.13.0
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+No explanation, code only.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+SSR 要求：Server HTML + Client 初次 render 必須完全一致 否則會觸發 Hydration Error
+比如說 Server端沒有Localstorage 但Client端有，就會觸發。
+再比如說Browser的extension會改變body，可以在body標籤寫suppressHydrationWarninge
 
-To learn more about Next.js, take a look at the following resources:
+Server action只能回傳純字串JSON給前端
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
