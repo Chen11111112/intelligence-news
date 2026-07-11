@@ -15,6 +15,8 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { channelDiscuss, channelOralFeedback } from '@/app/actions/channel';
+import { AILoginPrompt } from '@/components/AILoginPrompt';
+import { AIErrorMessage } from '@/components/AIErrorMessage';
 import { getAIErrorMessage } from '@/lib/ai/errors';
 import { speechErrorLabel, t } from '@/lib/copy';
 import { useAIArticleAccess } from '@/hooks/useAIArticleAccess';
@@ -180,7 +182,10 @@ export function ArticleChatPanel({
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 && (
+        {!aiAccess.isLoggedIn && (
+          <AILoginPrompt className="mb-4" />
+        )}
+        {messages.length === 0 && aiAccess.isLoggedIn && (
           <div className="text-center py-8 px-4">
             <MessageCircle className="mx-auto text-blue-200 dark:text-blue-900 mb-3" size={40} />
             <p className="text-sm text-slate-600 dark:text-gray-300">{t('channel.chatHint')}</p>
@@ -239,10 +244,20 @@ export function ArticleChatPanel({
       </div>
 
       {(error || micErrorLabel) && (
-        <p className="px-4 py-2 text-xs text-red-500 dark:text-red-400 flex items-center gap-1.5 border-t border-red-50 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30">
-          <AlertCircle size={14} />
-          {error ?? micErrorLabel}
-        </p>
+        <div className="px-4 py-2 border-t border-red-50 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30">
+          {error ? (
+            <AIErrorMessage
+              message={error}
+              needsLogin={aiAccess.checkAccess().needsLogin}
+              className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1.5"
+            />
+          ) : (
+            <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1.5">
+              <AlertCircle size={14} />
+              {micErrorLabel}
+            </p>
+          )}
+        </div>
       )}
 
       <form
@@ -255,7 +270,7 @@ export function ArticleChatPanel({
         <button
           type="button"
           onClick={handleMic}
-          disabled={loading}
+          disabled={loading || !aiAccess.isLoggedIn}
           className={cn(
             'shrink-0 p-3 rounded-xl transition-all',
             listening
@@ -271,8 +286,9 @@ export function ArticleChatPanel({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           rows={1}
-          placeholder={t('channel.inputPlaceholder')}
-          className="flex-1 resize-none ui-input px-3 py-2.5 text-sm max-h-28"
+          placeholder={aiAccess.isLoggedIn ? t('channel.inputPlaceholder') : t('ai.loginRequired')}
+          disabled={!aiAccess.isLoggedIn}
+          className="flex-1 resize-none ui-input px-3 py-2.5 text-sm max-h-28 disabled:opacity-60"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -282,7 +298,7 @@ export function ArticleChatPanel({
         />
         <button
           type="submit"
-          disabled={loading || !input.trim()}
+          disabled={loading || !input.trim() || !aiAccess.isLoggedIn}
           className="shrink-0 p-3 rounded-xl bg-slate-900 dark:bg-blue-600 text-white disabled:opacity-40 hover:bg-slate-800 dark:hover:bg-blue-700"
         >
           <Send size={18} />

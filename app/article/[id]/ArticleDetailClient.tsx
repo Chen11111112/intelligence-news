@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { BookmarkButton } from '@/components/BookmarkButton';
 import { AISummaryExportMenu } from '@/components/AISummaryExportMenu';
+import { AILoginPrompt } from '@/components/AILoginPrompt';
+import { AIErrorMessage } from '@/components/AIErrorMessage';
 import { t } from '@/lib/copy';
 import { useAISummaryCache } from '@/hooks/useAISummaryCache';
 import { useUserSettings } from '@/hooks/useUserSettings';
@@ -135,7 +137,7 @@ export default function ArticleDetailView({ article }: { article: NewsArticle })
   const handleFetchSummary = async () => {
     const access = aiAccess.checkAccess();
     if (!access.allowed) {
-      setSummaryError(access.reason ?? '無法使用 AI 功能');
+      setSummaryError(access.reason ?? t('ai.loginRequired'));
       return;
     }
 
@@ -239,6 +241,8 @@ export default function ArticleDetailView({ article }: { article: NewsArticle })
             t={t}
             loading={loadingSummary}
             error={summaryError}
+            isLoggedIn={aiAccess.isLoggedIn}
+            loginNeedsLogin={aiAccess.checkAccess().needsLogin}
             onGenerate={handleFetchSummary}
             onRegenerate={() => {
               setSummaryFromCache(false);
@@ -252,7 +256,15 @@ export default function ArticleDetailView({ article }: { article: NewsArticle })
       <QuizSection
         examTarget={examTarget}
         onExamTargetChange={setExamTarget}
-        onStart={() => setShowQuiz(true)}
+        isLoggedIn={aiAccess.isLoggedIn}
+        onStart={() => {
+          const access = aiAccess.checkAccess();
+          if (!access.allowed) {
+            setSummaryError(access.reason ?? t('ai.loginRequired'));
+            return;
+          }
+          setShowQuiz(true);
+        }}
       />
 
       <AnimatePresence>
@@ -351,6 +363,8 @@ function AISummaryPanel({
   t,
   loading,
   error,
+  isLoggedIn,
+  loginNeedsLogin,
   onGenerate,
   onRegenerate,
 }: {
@@ -364,6 +378,8 @@ function AISummaryPanel({
   t: (key: string, vars?: Record<string, string | number>) => string;
   loading: boolean;
   error: string | null;
+  isLoggedIn: boolean;
+  loginNeedsLogin?: boolean;
   onGenerate: () => void;
   onRegenerate: () => void;
 }) {
@@ -398,34 +414,42 @@ function AISummaryPanel({
 
       {!aiSummary ? (
         <div className="space-y-3">
-          <ul className="text-xs ui-muted space-y-1.5 mb-4">
-            <li className="flex items-center gap-2">
-              <ListChecks size={14} className="text-blue-500 shrink-0" />
-              雙語段落摘要
-            </li>
-            <li className="flex items-center gap-2">
-              <Target size={14} className="text-blue-500 shrink-0" />
-              符合 {examTarget} 程度的學術用語
-            </li>
-          </ul>
-          <button
-            onClick={onGenerate}
-            disabled={loading}
-            className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                {t('article.generating')}
-              </>
-            ) : (
-              <>
-                <Sparkles size={16} />
-                {t('article.getSummary')}
-              </>
-            )}
-          </button>
-          {error && <p className="text-xs text-red-500 text-center">{error}</p>}
+          {!isLoggedIn ? (
+            <AILoginPrompt />
+          ) : (
+            <>
+              <ul className="text-xs ui-muted space-y-1.5 mb-4">
+                <li className="flex items-center gap-2">
+                  <ListChecks size={14} className="text-blue-500 shrink-0" />
+                  雙語段落摘要
+                </li>
+                <li className="flex items-center gap-2">
+                  <Target size={14} className="text-blue-500 shrink-0" />
+                  符合 {examTarget} 程度的學術用語
+                </li>
+              </ul>
+              <button
+                onClick={onGenerate}
+                disabled={loading}
+                className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    {t('article.generating')}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    {t('article.getSummary')}
+                  </>
+                )}
+              </button>
+            </>
+          )}
+          {error && (
+            <AIErrorMessage message={error} needsLogin={loginNeedsLogin} />
+          )}
         </div>
       ) : (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
@@ -493,10 +517,12 @@ function QuizSection({
   examTarget,
   onExamTargetChange,
   onStart,
+  isLoggedIn,
 }: {
   examTarget: ExamTarget;
   onExamTargetChange: (t: ExamTarget) => void;
   onStart: () => void;
+  isLoggedIn: boolean;
 }) {
   const aiLimit = getDailyAILimit();
   return (
@@ -544,11 +570,17 @@ function QuizSection({
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={onStart}
-        className="w-full md:w-auto bg-blue-600 text-white px-10 py-4 rounded-full font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-3 mx-auto md:mx-0"
+        disabled={!isLoggedIn}
+        className="w-full md:w-auto bg-blue-600 text-white px-10 py-4 rounded-full font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-3 mx-auto md:mx-0 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <GraduationCap size={24} />
-        Generate Vocabulary Quiz
+        {isLoggedIn ? 'Generate Vocabulary Quiz' : t('ai.loginRequired')}
       </motion.button>
+      {!isLoggedIn && (
+        <div className="mt-6 max-w-md">
+          <AILoginPrompt />
+        </div>
+      )}
     </motion.section>
   );
 }
@@ -566,7 +598,7 @@ function QuizModal({
   articleText: string;
   examTarget: ExamTarget;
   examScore: string;
-  checkAIAccess: () => { allowed: boolean; reason?: string };
+  checkAIAccess: () => { allowed: boolean; reason?: string; needsLogin?: boolean };
   onAIUsed: () => void;
   onClose: () => void;
 }) {
@@ -581,7 +613,7 @@ function QuizModal({
   const startQuiz = async () => {
     const access = checkAIAccess();
     if (!access.allowed) {
-      setError(access.reason ?? '無法使用 AI 測驗');
+      setError(access.reason ?? t('ai.loginRequired'));
       return;
     }
 
@@ -667,7 +699,7 @@ function QuizModal({
                   '開始測驗'
                 )}
               </button>
-              {error && <p className="text-sm text-red-500 mt-4">{error}</p>}
+              {error && <AIErrorMessage message={error} needsLogin={checkAIAccess().needsLogin} className="text-sm text-red-500 mt-4" />}
             </div>
           ) : finished ? (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-8">

@@ -24,6 +24,7 @@
 .DS_Store
 *.pem
 *.7z
+*.7z.tmp
 
 # debug
 npm-debug.log*

@@ -4,7 +4,7 @@
 
 ## 1. 專案概述
 
-**Intelligence News** 是以時事新聞輔助英文學習的 Web 應用。主要資料來源為 [The Conversation (US)](https://theconversation.com/us) RSS，搭配 Google Gemini 提供 AI 摘要、測驗與口說練習。
+**Intelligence News** 是以時事新聞輔助英文學習的 Web 應用。主要資料來源為 [The Conversation (US)](https://theconversation.com/us) RSS，搭配 **NVIDIA NIM API** 提供 AI 摘要、測驗與口說練習（需登入）。
 
 | 項目 | 說明 |
 |------|------|
@@ -13,7 +13,7 @@
 | 語言 | TypeScript（前端/後端）、Python 3（爬蟲） |
 | 驗證 | NextAuth v5 + Google OAuth |
 | 資料庫 | MongoDB Atlas |
-| AI | Google Gemini（`gemini-2.5-flash-lite`） |
+| AI | NVIDIA NIM（OpenAI 相容 API，預設 `meta/llama-3.1-8b-instruct`） |
 
 所有登入使用者享有相同額度：**每日 3 篇 AI 文章**（摘要與測驗合計）、**最多 4 個新聞標籤**。
 
@@ -36,7 +36,7 @@ flowchart TB
 
   subgraph External["外部服務"]
     Google[Google OAuth]
-    Gemini[Google Gemini API]
+    NIM[NVIDIA NIM API]
     TC[The Conversation RSS]
   end
 
@@ -55,7 +55,7 @@ flowchart TB
   UI --> SSR
   UI --> LS
   SA --> MONGO
-  SA --> Gemini
+  SA --> NIM
   SSR --> JSON
   SSR --> MONGO
   API --> PY
@@ -158,7 +158,10 @@ news_app/
 | `AUTH_GOOGLE_ID` | 是 | Google OAuth Client ID |
 | `AUTH_GOOGLE_SECRET` | 是 | Google OAuth Client Secret |
 | `AUTH_URL` 或 `NEXTAUTH_URL` | 正式環境必填 | **網站 origin**，例如 `https://intelligence-news.ntubimdbirc.tw`（不含 `/api/auth`） |
-| `GEMINI_API_KEY` | AI 功能 | Google AI Studio API Key |
+| `NVIDIA_API_KEY` | AI 功能 | [build.nvidia.com](https://build.nvidia.com) 取得的 API Key（`nvapi-` 開頭） |
+| `NVIDIA_NIM_MODEL` | 否 | 模型名稱，預設 `meta/llama-3.1-8b-instruct` |
+| `NVIDIA_NIM_BASE_URL` | 否 | API 端點，預設 `https://integrate.api.nvidia.com/v1` |
+| `NIM_API_KEY` | 否 | `NVIDIA_API_KEY` 的別名 |
 | `CRAWL_API_SECRET` | 遠端爬蟲 | `/api/crawl` Bearer 驗證 |
 | `PYTHON_PATH` | 否 | 爬蟲 Python 執行檔路徑，預設 `python` |
 | `MONGODB_DB` | 否 | 覆寫 URI 中的資料庫名稱 |
@@ -182,7 +185,8 @@ AUTH_SECRET=<random-base64-string>
 AUTH_GOOGLE_ID=<google-client-id>
 AUTH_GOOGLE_SECRET=<google-client-secret>
 AUTH_URL=http://localhost:3000
-GEMINI_API_KEY=<gemini-api-key>
+NVIDIA_API_KEY=<nvapi-key>
+NVIDIA_NIM_MODEL=meta/llama-3.1-8b-instruct
 CRAWL_API_SECRET=<random-crawl-secret>
 ```
 
@@ -328,7 +332,7 @@ interface UserProfileDocument {
 
 | 模組 | 主要函式 | 說明 |
 |------|----------|------|
-| `ai.ts` | `generateSummary`, `generateQuiz` | Gemini 摘要與測驗；需登入 |
+| `ai.ts` | `generateSummary`, `generateQuiz` | NVIDIA NIM 摘要與測驗；**需登入** |
 | `channel.ts` | `channelDiscuss`, `channelOralFeedback` | 收藏文章 AI 討論 / 口說回饋 |
 | `user.ts` | `loadUserProfile`, `persistUserProfile`, `syncCrawlPreferences` | 個人設定 CRUD、同步爬蟲標籤 |
 | `user.ts` | `toggleBookmarkInDb`, `recordAIUsageInDb`, `loadAIUsageFromDb` | 書籤與 AI 用量 |
@@ -420,18 +424,19 @@ curl -X POST -H "Authorization: Bearer $CRAWL_API_SECRET" \
 
 | 項目 | 值 |
 |------|-----|
-| SDK | `@google/genai` |
-| 模型 | `gemini-2.5-flash-lite` |
-| 回應格式 | JSON Schema（`responseMimeType: 'application/json'`） |
+| 提供者 | NVIDIA NIM（OpenAI 相容 Chat Completions API） |
+| 端點 | `https://integrate.api.nvidia.com/v1/chat/completions` |
+| 預設模型 | `meta/llama-3.1-8b-instruct`（可透過 `NVIDIA_NIM_MODEL` 覆寫） |
+| 實作 | `lib/ai/nim.ts` |
 
-功能：
+功能（**皆需登入**，未登入時客戶端顯示登入提示）：
 
 - **摘要**（`generateSummary`）：英文摘要 + 繁中說明、重點條列
 - **測驗**（`generateQuiz`）：選擇題，依 IELTS/TOEFL/TOEIC 程度調整
 - **Channel 討論**（`channelDiscuss`）：僅限已收藏文章
 - **口說回饋**（`channelOralFeedback`）：語音練習評分與建議
 
-Prompt 會帶入使用者 `examType` 與 `examScores`，並以 `getLocaleAIInstructions()` 指定繁體中文在地化。
+Prompt 會帶入使用者 `examType` 與 `examScores`，並以 `getLocaleAIInstructions()` 指定繁體中文在地化。結構化回應（JSON）透過 prompt 要求模型輸出，並以 `extractJsonFromText()` 解析。
 
 摘要快取：客戶端 `localStorage`（`user_ai_summaries`）+ 登入後 MongoDB `user_profiles.aiSummaries`。
 
@@ -519,7 +524,7 @@ AUTH_URL=https://intelligence-news.ntubimdbirc.tw
 | Google 登入 redirect 錯誤 | `AUTH_URL` 或 Google Console redirect URI 不符 | 確認 origin 與 `/api/auth/callback/google` |
 | `/api/auth/session` 404 連鎖錯誤 | 上述 Server Action 模組載入失敗 | 修正 Action 模組錯誤後重啟 dev server |
 | 登入後設定未保存 | `MONGODB_URI` 未設定或連線失敗 | 檢查 Atlas IP 白名單、連線字串 |
-| AI 功能報錯 | `GEMINI_API_KEY` 缺失或配額用盡 | 設定 Key 或等待配額重置 |
+| AI 功能報錯 | `NVIDIA_API_KEY` 缺失或配額用盡 | 至 build.nvidia.com 取得 Key 並設定環境變數 |
 | 今日 AI 額度已用完 | 當日已對 3 篇不同文章使用 AI | 等待隔日重置，或對已用過的文章重複生成（不計次） |
 | 首頁無新聞 | 未執行爬蟲或 JSON 為空 | `npm run crawl` 或呼叫 `/api/crawl` |
 | Hydration Error | SSR/CSR 渲染不一致 | 避免 SSR 使用 `window`/`localStorage` |

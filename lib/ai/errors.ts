@@ -9,12 +9,12 @@ function extractMessage(error: unknown): string {
   return String(error);
 }
 
-/** 將 AI / Gemini 相關錯誤轉為使用者可讀的繁體中文 */
+/** 將 AI / NVIDIA NIM 相關錯誤轉為使用者可讀的繁體中文 */
 export function getAIErrorMessage(error: unknown, fallback: string): string {
   const message = extractMessage(error);
 
-  if (message === 'GEMINI_API_KEY_MISSING') {
-    return '請在環境變數中設定 GEMINI_API_KEY';
+  if (message === 'NVIDIA_API_KEY_MISSING') {
+    return '請在環境變數中設定 NVIDIA_API_KEY';
   }
 
   if (CJK.test(message)) {
@@ -38,7 +38,7 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
     lower.includes('invalid api key') ||
     (lower.includes('invalid') && lower.includes('key'))
   ) {
-    return 'GEMINI API 金鑰無效或未設定，請聯繫管理員';
+    return 'NVIDIA NIM API 金鑰無效或未設定，請聯繫管理員';
   }
 
   if (
@@ -47,6 +47,14 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
     lower.includes('permission_denied')
   ) {
     return 'AI 服務驗證失敗，請稍後再試';
+  }
+
+  if (
+    lower.includes('nvidia nim') ||
+    lower.includes('nvapi') ||
+    lower.includes('integrate.api.nvidia.com')
+  ) {
+    return 'NVIDIA NIM 服務暫時無法使用，請稍後再試';
   }
 
   if (lower.includes('403') || lower.includes('forbidden')) {

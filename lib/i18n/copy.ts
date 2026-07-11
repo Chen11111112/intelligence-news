@@ -61,6 +61,10 @@ const copy = {
     view: '查看',
   },
   common: { loading: '載入中…', back: '返回', save: '儲存' },
+  ai: {
+    loginRequired: '請先登入帳號以使用 AI 功能！',
+    loginAction: '前往登入',
+  },
   profile: {
     loading: '載入個人設定中…',
     tags: '新聞分類偏好',
