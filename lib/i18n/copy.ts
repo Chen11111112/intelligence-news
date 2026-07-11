@@ -1,7 +1,7 @@
 import { getSelectableTag } from '@/lib/tags';
 
 const copy = {
-  nav: { explore: 'Explore', channel: 'Channel', words: 'Words', profile: 'Profile', notifications: 'Notifications' },
+  nav: { explore: 'Explore', channel: 'Channel', words: 'Words', profile: 'Profile', notifications: 'Notifications', guide: '說明' },
   brand: { title: 'Intelligence', accent: 'News' },
   explore: {
     topicsTitle: '探索主題',
@@ -25,7 +25,7 @@ const copy = {
   words: { title: '我的收藏', subtitle: '共 {count} 篇', empty: '尚未收藏任何文章。', goExplore: '前往探索新聞 →' },
   channel: {
     title: '學習頻道',
-    subtitle: '從收藏文章中選擇一篇，用文字或麥克風與 AI 討論內容；口說時 AI 會糾正文法與表達。',
+    subtitle: '從收藏文章中選擇一篇，用文字或麥克風與 AI 討論內容；口說時 AI 以鼓勵為主、溫和糾正。',
     empty: '尚未收藏任何文章，請先收藏後再來討論。',
     goExplore: '前往探索新聞 →',
     pickArticle: '我的收藏 · {count} 篇',
@@ -33,7 +33,7 @@ const copy = {
     discuss: '與 AI 討論',
     selectPrompt: '請選擇左側收藏文章開始對話',
     chatHint: '用英文分享你對這篇新聞的看法，AI 會依你的考試目標回覆。',
-    oralHint: '點麥克風用英文口說，AI 會糾正錯誤並繼續對話。',
+    oralHint: '點麥克風用英文口說；AI 會以鼓勵為主，僅在必要時溫和提示 1–2 處改進。',
     inputPlaceholder: '輸入英文訊息…',
     thinking: 'AI 思考中…',
     oralCorrections: '口說糾正',
@@ -68,11 +68,11 @@ const copy = {
   profile: {
     loading: '載入個人設定中…',
     tags: '新聞分類偏好',
-    tagsDesc: '每小時依你所選標籤更新新聞（已選 {current}/{max}）',
+    tagsDesc: '依你所選標籤更新新聞（已選 {current}/{max}）',
     exam: '英文程度設定',
     examTap: '點擊設定',
     examCurrent: '目前目標：{exam} {score}。點擊「點擊設定」調整。',
-    usageLimits: '每日 AI {ai} 篇 · 最多 {tags} 個標籤',
+    usageLimits: '每日 AI 功能上限{ai} 篇 · 最多 {tags} 個標籤',
     saveAll: '儲存所有設定',
     saved: '設定已成功儲存！',
     member: '{exam} {score} 學習者',

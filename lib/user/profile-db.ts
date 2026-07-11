@@ -1,6 +1,7 @@
 import type { ExamTarget, Topic } from '@/lib/types/data';
 import clientPromise from '@/lib/db';
 import type { AISummariesCache, AISummaryCacheEntry } from '@/lib/ai/summaries';
+import type { AIQuizzesCache, AIQuizCacheEntry } from '@/lib/ai/quizzes';
 import { DEFAULT_UI_LOCALE, type UILocale } from '@/lib/i18n/locale';
 import type { AIUsageRecord, ExamScores } from '@/lib/user/types';
 import { getDefaultTagPreferences, tagSlugsToTopics, todayKey, clampTagPreferences } from '@/lib/user/types';
@@ -16,6 +17,7 @@ export interface UserProfileDocument {
   bookmarks: string[];
   aiUsage: AIUsageRecord;
   aiSummaries?: AISummariesCache;
+  aiQuizzes?: AIQuizzesCache;
   updatedAt: Date;
 }
 
@@ -292,5 +294,47 @@ export async function persistAISummaryToDb(
   } catch (error) {
     console.error('[persistAISummaryToDb]', error);
     return { ok: false, error: '無法同步 AI 摘要至雲端' };
+  }
+}
+
+export async function loadAIQuizzesFromDb(userId: string): Promise<AIQuizzesCache> {
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    const doc = await db.collection(COLLECTION).findOne(
+      { userId },
+      { projection: { aiQuizzes: 1 } },
+    );
+    const raw = doc?.aiQuizzes;
+    if (!raw || typeof raw !== 'object') return {};
+    return raw as AIQuizzesCache;
+  } catch (error) {
+    console.error('[loadAIQuizzesFromDb]', error);
+    return {};
+  }
+}
+
+export async function persistAIQuizToDb(
+  userId: string,
+  articleId: string,
+  entry: AIQuizCacheEntry,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    await db.collection(COLLECTION).updateOne(
+      { userId },
+      {
+        $set: {
+          [`aiQuizzes.${articleId}`]: entry,
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true },
+    );
+    return { ok: true };
+  } catch (error) {
+    console.error('[persistAIQuizToDb]', error);
+    return { ok: false, error: '無法同步 AI 測驗至雲端' };
   }
 }

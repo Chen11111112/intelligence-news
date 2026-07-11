@@ -1,14 +1,49 @@
 'use server';
 
 import { toUserFacingAIError } from '@/lib/ai/errors';
-import { extractJsonFromText, nimChatCompletion } from '@/lib/ai/nim';
+import { extractJsonFromText, nimChatCompletion, nimChatJSON, AI_ARTICLE_MAX_CHARS } from '@/lib/ai/nim';
 import { requireAIAuth } from '@/lib/ai/require-auth';
+import { recordAIQuotaUsage, requireAIQuota } from '@/lib/ai/require-quota';
 import type { ExamTarget } from '@/lib/data';
 import { getArticleText } from '@/lib/article';
 import type { ChannelChatMessage, ChannelOralResult } from '@/lib/channel';
+import {
+  filterOralCorrections,
+  normalizeOralCorrectionItem,
+} from '@/lib/news/channel';
 import { getLocaleAIInstructions, getLocaleAIName } from '@/lib/locale';
 import { getNewsById } from '@/lib/news';
 import { getUserProfileFromDb } from '@/lib/user-profile-db';
+
+const ORAL_FEEDBACK_JSON_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  properties: {
+    reply: { type: 'string' },
+    corrected_sentence: { type: 'string' },
+    corrections: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          original: { type: 'string' },
+          suggestion: { type: 'string' },
+          type: { type: 'string' },
+          explanation: { type: 'string' },
+        },
+        required: ['original', 'suggestion'],
+      },
+    },
+  },
+  required: ['reply'],
+};
+
+type OralFeedbackPayload = {
+  reply?: string;
+  response?: string;
+  message?: string;
+  corrected_sentence?: string;
+  corrections?: unknown[];
+};
 
 function buildExamPrompt(examType: ExamTarget, examScore: string): string {
   return `${examType} preparation at target level ${examScore}`;
@@ -19,6 +54,14 @@ function formatHistory(messages: ChannelChatMessage[]): string {
     .slice(-12)
     .map((m) => `${m.role === 'user' ? 'Learner' : 'Tutor'}: ${m.content}`)
     .join('\n');
+}
+
+function extractOralReply(parsed: OralFeedbackPayload): string {
+  for (const key of ['reply', 'response', 'message'] as const) {
+    const value = String(parsed[key] ?? '').trim();
+    if (value) return value;
+  }
+  return '';
 }
 
 async function assertBookmarked(articleId: string, userId: string, email?: string | null) {
@@ -37,13 +80,14 @@ export async function channelDiscuss(
   const session = await requireAIAuth();
 
   try {
+    await requireAIQuota(session.user.id!, articleId);
     await assertBookmarked(articleId, session.user.id!, session.user.email);
     const article = await getNewsById(articleId);
     if (!article) throw new Error('找不到文章');
 
     const localeName = getLocaleAIName();
     const localeInstructions = getLocaleAIInstructions();
-    const articleText = getArticleText(article).slice(0, 10000);
+    const articleText = getArticleText(article).slice(0, AI_ARTICLE_MAX_CHARS);
     const history = formatHistory(messages);
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
 
@@ -66,11 +110,12 @@ Latest learner message: ${lastUser}`;
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      { maxTokens: 2048 },
+      { maxTokens: 1024 },
     );
 
     const reply = text.trim();
     if (!reply) throw new Error('AI 回傳內容為空');
+    await recordAIQuotaUsage(session.user.id!, articleId);
     return reply;
   } catch (error) {
     console.error('channelDiscuss:', error);
@@ -89,6 +134,7 @@ export async function channelOralFeedback(
 
   try {
     if (!transcript.trim()) throw new Error('沒有辨識到語音內容');
+    await requireAIQuota(session.user.id!, articleId);
     await assertBookmarked(articleId, session.user.id!, session.user.email);
 
     const article = await getNewsById(articleId);
@@ -96,16 +142,24 @@ export async function channelOralFeedback(
 
     const localeName = getLocaleAIName();
     const localeInstructions = getLocaleAIInstructions();
-    const articleText = getArticleText(article).slice(0, 8000);
+    const articleText = getArticleText(article).slice(0, AI_ARTICLE_MAX_CHARS);
     const history = formatHistory(messages);
 
-    const systemPrompt = `You are an English speaking coach for ${buildExamPrompt(examType, examScore)}.
+    const systemPrompt = `You are a warm, supportive English speaking coach for ${buildExamPrompt(examType, examScore)}.
 ${localeInstructions}
-Return ONLY valid JSON with fields: reply (string), corrected_sentence (string), corrections (array of {original, suggestion, type, explanation}).
-type must be one of: grammar, pronunciation, vocabulary, fluency.
-Write explanation in ${localeName}.`;
+Return ONLY valid JSON: reply (string), corrected_sentence (string, optional), corrections (array, max 2 items).
+Each correction: {original, suggestion, type, explanation}. type: grammar | pronunciation | vocabulary | fluency.
+Write explanation in ${localeName}.
 
-    const userPrompt = `The learner spoke aloud about this news article (transcript from speech recognition; may contain STT errors).
+Coaching style:
+- Be encouraging. Start reply by acknowledging what the learner expressed well.
+- The transcript is from speech recognition and often has STT errors — do NOT correct likely misheard words.
+- Only flag 0-2 clear issues that block understanding or are obvious grammar mistakes.
+- Ignore minor word-order preferences, filler words, or stylistic differences.
+- If the message is understandable, return corrections as [] and leave corrected_sentence empty.
+- Keep reply conversational (2-3 short paragraphs), then invite them to continue in English.`;
+
+    const userPrompt = `The learner spoke aloud about this news article.
 
 Article title: ${article.titleEn}
 Article excerpt:
@@ -114,38 +168,64 @@ ${articleText}
 Prior conversation:
 ${history || '(none)'}
 
-Learner's spoken transcript:
+Learner's spoken transcript (may contain STT noise):
 "${transcript.trim()}"
 
 Tasks:
-1. Infer what the learner meant to say about the article.
-2. Provide a natural corrected English sentence (corrected_sentence).
-3. List specific mistakes: grammar, pronunciation hints, vocabulary, or fluency.
-4. Reply conversationally in English (reply), briefly continuing the discussion.`;
+1. Understand what they meant about the article.
+2. Reply warmly in English; praise effort before any correction.
+3. At most 2 corrections — only if truly needed. Otherwise corrections: [].
+4. corrected_sentence only when you rewrote a confusing sentence; otherwise "".`;
 
-    const raw = await nimChatCompletion(
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      { maxTokens: 3072 },
+    let parsed: OralFeedbackPayload;
+    try {
+      parsed = await nimChatJSON<OralFeedbackPayload>(systemPrompt, userPrompt, 1536, {
+        temperature: 0.35,
+        guidedJson: ORAL_FEEDBACK_JSON_SCHEMA,
+        retries: 1,
+      });
+    } catch (jsonError) {
+      console.warn('channelOralFeedback JSON failed, retrying without schema:', jsonError);
+      const raw = await nimChatCompletion(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        { maxTokens: 1536 },
+      );
+      parsed = JSON.parse(extractJsonFromText(raw)) as OralFeedbackPayload;
+    }
+
+    let reply = extractOralReply(parsed);
+    if (!reply) {
+      reply = (
+        await channelDiscuss(
+          articleId,
+          [...messages, { role: 'user', content: transcript.trim() }],
+          examType,
+          examScore,
+        )
+      ).trim();
+    }
+    if (!reply) {
+      throw new Error('AI 回傳內容為空');
+    }
+
+    const transcriptNorm = transcript.trim().toLowerCase();
+    const corrected = String(parsed.corrected_sentence ?? '').trim();
+    const corrections = filterOralCorrections(
+      (parsed.corrections ?? [])
+        .map(normalizeOralCorrectionItem)
+        .filter((item): item is NonNullable<typeof item> => item !== null),
     );
 
-    const parsed = JSON.parse(extractJsonFromText(raw)) as {
-      reply: string;
-      corrected_sentence: string;
-      corrections: Array<{
-        original: string;
-        suggestion: string;
-        type: 'grammar' | 'pronunciation' | 'vocabulary' | 'fluency';
-        explanation: string;
-      }>;
-    };
+    await recordAIQuotaUsage(session.user.id!, articleId);
 
     return {
-      reply: parsed.reply,
-      correctedSentence: parsed.corrected_sentence,
-      corrections: parsed.corrections ?? [],
+      reply,
+      correctedSentence:
+        corrected && corrected.toLowerCase() !== transcriptNorm ? corrected : '',
+      corrections,
     };
   } catch (error) {
     console.error('channelOralFeedback:', error);

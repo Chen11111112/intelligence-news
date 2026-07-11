@@ -24,6 +24,7 @@ import { AILoginPrompt } from '@/components/AILoginPrompt';
 import { AIErrorMessage } from '@/components/AIErrorMessage';
 import { t } from '@/lib/copy';
 import { useAISummaryCache } from '@/hooks/useAISummaryCache';
+import { useAIQuizCache } from '@/hooks/useAIQuizCache';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useAIArticleAccess } from '@/hooks/useAIArticleAccess';
 import { useSession } from 'next-auth/react';
@@ -58,6 +59,7 @@ export default function ArticleDetailView({ article }: { article: NewsArticle })
   const { settings, ready: userReady } = useUserSettings();
   const aiAccess = useAIArticleAccess(id);
   const summaryCache = useAISummaryCache(id, Boolean(session?.user?.id));
+  const quizCache = useAIQuizCache(id, Boolean(session?.user?.id));
 
   const [aiSummary, setAiSummary] = useState<AISummary | null>(null);
   const [summaryFromCache, setSummaryFromCache] = useState(false);
@@ -145,7 +147,7 @@ export default function ArticleDetailView({ article }: { article: NewsArticle })
     setSummaryError(null);
     try {
       const examScore = settings?.examScores[examTarget] ?? '7.5';
-      const data = await generateSummary(articleText, examTarget, examScore);
+      const data = await generateSummary(id, articleText, examTarget, examScore);
       aiAccess.recordUsage();
       setAiSummary(data);
       setSummaryFromCache(false);
@@ -272,10 +274,12 @@ export default function ArticleDetailView({ article }: { article: NewsArticle })
           <QuizModal
             article={article}
             articleText={articleText}
+            articleBodyLoading={loadingBody}
             examTarget={examTarget}
+            examScore={settings?.examScores[examTarget] ?? '7.5'}
+            quizCache={quizCache}
             checkAIAccess={aiAccess.checkAccess}
             onAIUsed={aiAccess.recordUsage}
-            examScore={settings?.examScores[examTarget] ?? '7.5'}
             onClose={() => setShowQuiz(false)}
           />
         )}
@@ -588,16 +592,20 @@ function QuizSection({
 function QuizModal({
   article,
   articleText,
+  articleBodyLoading,
   examTarget,
   examScore,
+  quizCache,
   checkAIAccess,
   onAIUsed,
   onClose,
 }: {
   article: NewsArticle;
   articleText: string;
+  articleBodyLoading: boolean;
   examTarget: ExamTarget;
   examScore: string;
+  quizCache: ReturnType<typeof useAIQuizCache>;
   checkAIAccess: () => { allowed: boolean; reason?: string; needsLogin?: boolean };
   onAIUsed: () => void;
   onClose: () => void;
@@ -605,28 +613,67 @@ function QuizModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [quizFromCache, setQuizFromCache] = useState(false);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
 
-  const startQuiz = async () => {
+  useEffect(() => {
+    if (!quizCache.loaded) return;
+    const cached = quizCache.getCached();
+    if (
+      cached &&
+      cached.examTarget === examTarget &&
+      cached.examScore === examScore &&
+      cached.questions.length > 0
+    ) {
+      setQuestions(cached.questions.map((q) => normalizeQuizQuestion(q)));
+      setQuizFromCache(true);
+      setCurrentIdx(0);
+      setSelected(null);
+      setScore(0);
+      setFinished(false);
+    }
+  }, [quizCache.loaded, quizCache.getCached, examTarget, examScore]);
+
+  const startQuiz = async (forceRegenerate = false) => {
+    if (!forceRegenerate && questions.length > 0 && quizFromCache) {
+      setCurrentIdx(0);
+      setSelected(null);
+      setScore(0);
+      setFinished(false);
+      return;
+    }
+
     const access = checkAIAccess();
     if (!access.allowed) {
       setError(access.reason ?? t('ai.loginRequired'));
       return;
     }
 
+    if (articleBodyLoading) {
+      setError('文章內容載入中，請稍候再試');
+      return;
+    }
+
+    if (!articleText?.trim() || articleText.trim().length < 80) {
+      setError('文章內容尚未載入完成，請稍候再試');
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setFinished(false);
+    setQuizFromCache(false);
     try {
-      const data = await generateQuiz(articleText, examTarget, examScore);
+      const data = await generateQuiz(article.id, articleText, examTarget, examScore);
       onAIUsed();
-      setQuestions(data.map((q) => normalizeQuizQuestion(q)));
+      setQuestions(data);
       setCurrentIdx(0);
       setSelected(null);
       setScore(0);
-      setFinished(false);
+      await quizCache.saveQuiz(data, examTarget, examScore, article.titleEn);
     } catch (err) {
       setError(getAIErrorMessage(err, '無法生成測驗，請稍後再試。'));
     } finally {
@@ -666,6 +713,9 @@ function QuizModal({
           <div>
             <h2 className="text-xl font-bold ui-heading">AI 字彙測驗</h2>
             <p className="text-xs ui-muted mt-0.5">{examTarget} · {article.titleEn.slice(0, 40)}…</p>
+            {quizFromCache && questions.length > 0 && (
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">已載入先前儲存的測驗</p>
+            )}
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-gray-700 rounded-full transition-colors">
             <X size={20} />
@@ -678,7 +728,13 @@ function QuizModal({
           </div>
         )}
 
-        <div className="p-6 md:p-8 overflow-y-auto ui-page flex-1">
+        <div className="p-6 md:p-8 overflow-y-auto ui-page flex-1 relative">
+          {loading && questions.length > 0 && (
+            <div className="absolute inset-0 z-10 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+              <Loader2 size={32} className="animate-spin text-blue-600" />
+              <p className="text-sm ui-muted">正在生成新題目，約需 30–90 秒…</p>
+            </div>
+          )}
           {questions.length === 0 ? (
             <div className="text-center py-10">
               <BookOpen className="mx-auto mb-4 text-blue-600" size={48} />
@@ -686,14 +742,19 @@ function QuizModal({
                 將依據文章全文生成 3 題選擇題，測試你對關鍵字彙的掌握程度。
               </p>
               <button
-                onClick={startQuiz}
-                disabled={loading}
+                onClick={() => void startQuiz()}
+                disabled={loading || articleBodyLoading}
                 className="bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition-all disabled:opacity-50 inline-flex items-center gap-2"
               >
                 {loading ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    正在生成題目…
+                    正在生成題目（約 30–90 秒）…
+                  </>
+                ) : articleBodyLoading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    文章載入中…
                   </>
                 ) : (
                   '開始測驗'
@@ -717,10 +778,18 @@ function QuizModal({
               </p>
               <motion.div className="flex gap-3 justify-center">
                 <button
-                  onClick={startQuiz}
-                  className="px-6 py-2.5 ui-btn-secondary rounded-xl font-semibold"
+                  onClick={() => void startQuiz(true)}
+                  disabled={loading}
+                  className="px-6 py-2.5 ui-btn-secondary rounded-xl font-semibold disabled:opacity-50 inline-flex items-center gap-2"
                 >
-                  再來一組
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      生成中…
+                    </>
+                  ) : (
+                    '再來一組'
+                  )}
                 </button>
                 <button onClick={onClose} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">
                   關閉

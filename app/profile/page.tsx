@@ -1,18 +1,31 @@
-import { auth, signIn } from "@/app/auth"; // 確保此路徑指向你的 auth.ts
+import { auth, signIn } from '@/app/auth';
+import ProfileForm from '@/components/Profile/ProfileForm';
+import { getUserProfileFromDb } from '@/lib/user/profile-db';
 import { LogIn } from 'lucide-react';
-import ProfileForm from '@/components/Profile/ProfileForm'; // 引入我們切出去的客戶端表單
 
 export default async function ProfilePage() {
-  // 1. 在 Server 端直接獲取登入狀態，效能極高
   const session = await auth();
+  let initialProfile = null;
+  let profileLoadError: string | null = null;
+
+  if (session?.user?.id) {
+    try {
+      initialProfile = await getUserProfileFromDb(session.user.id, session.user.email);
+    } catch (error) {
+      console.error('[profile/page]', error);
+      profileLoadError = '無法從資料庫載入個人設定，請確認 MONGODB_URI 與網路連線。';
+    }
+  }
 
   return (
     <main className="pt-24 pb-32 px-4 max-w-2xl mx-auto space-y-10 ui-page">
       {session ? (
-        /* 狀況 A：使用者已登入，直接渲染 Client 表單，並把 session 丟下去 */
-        <ProfileForm session={session} />
+        <ProfileForm
+          session={session}
+          initialProfile={initialProfile}
+          profileLoadError={profileLoadError}
+        />
       ) : (
-        /* 狀況 B：使用者未登入，原地展示精緻的 Google 登入邀請卡片 */
         <section className="ui-card p-8 max-w-md mx-auto text-center space-y-6 mt-12">
           <div className="space-y-2">
             <h3 className="text-2xl font-bold ui-heading">專屬你的 AI 學習檔案</h3>

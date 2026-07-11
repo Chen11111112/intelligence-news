@@ -161,7 +161,7 @@ news_app/
 | `NVIDIA_API_KEY` | AI 功能 | [build.nvidia.com](https://build.nvidia.com) 取得的 API Key（`nvapi-` 開頭） |
 | `NVIDIA_NIM_MODEL` | 否 | 模型名稱，預設 `meta/llama-3.1-8b-instruct` |
 | `NVIDIA_NIM_BASE_URL` | 否 | API 端點，預設 `https://integrate.api.nvidia.com/v1` |
-| `NIM_API_KEY` | 否 | `NVIDIA_API_KEY` 的別名 |
+| `NVIDIA_NIM_TIMEOUT_MS` | 否 | NIM API 請求逾時（毫秒），預設 `120000` |
 | `CRAWL_API_SECRET` | 遠端爬蟲 | `/api/crawl` Bearer 驗證 |
 | `PYTHON_PATH` | 否 | 爬蟲 Python 執行檔路徑，預設 `python` |
 | `MONGODB_DB` | 否 | 覆寫 URI 中的資料庫名稱 |
@@ -487,6 +487,7 @@ npm run start   # 預設 port 3000
 - TLS 終止於 Nginx
 - `proxy_set_header Host`、`X-Forwarded-Proto`、`X-Forwarded-For` 必須正確設定
 - Google OAuth 依賴正確的 HTTPS 與 Host
+- **AI 功能**：Nginx 預設 `proxy_read_timeout` 為 60 秒，大模型推理易逾時導致 **504**。請設為 `300s`（見範例檔）
 
 ### 15.3 Vercel / 其他平台
 
@@ -524,6 +525,7 @@ AUTH_URL=https://intelligence-news.ntubimdbirc.tw
 | Google 登入 redirect 錯誤 | `AUTH_URL` 或 Google Console redirect URI 不符 | 確認 origin 與 `/api/auth/callback/google` |
 | `/api/auth/session` 404 連鎖錯誤 | 上述 Server Action 模組載入失敗 | 修正 Action 模組錯誤後重啟 dev server |
 | 登入後設定未保存 | `MONGODB_URI` 未設定或連線失敗 | 檢查 Atlas IP 白名單、連線字串 |
+| AI 回傳 504 / 逾時 | Nginx 60s 逾時或模型太大（如 70B） | 拉長 `proxy_read_timeout`；改用 `meta/llama-3.1-8b-instruct` |
 | AI 功能報錯 | `NVIDIA_API_KEY` 缺失或配額用盡 | 至 build.nvidia.com 取得 Key 並設定環境變數 |
 | 今日 AI 額度已用完 | 當日已對 3 篇不同文章使用 AI | 等待隔日重置，或對已用過的文章重複生成（不計次） |
 | 首頁無新聞 | 未執行爬蟲或 JSON 為空 | `npm run crawl` 或呼叫 `/api/crawl` |

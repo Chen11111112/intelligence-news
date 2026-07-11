@@ -70,7 +70,7 @@ export function AISummaryExportMenu(props: AISummaryExportMenuProps) {
   const actions = [
     {
       id: 'share',
-      label: '分享（Line、記事本等）',
+      label: '分享',
       icon: Share2,
       onClick: async () => {
         setError(null);
@@ -87,15 +87,6 @@ export function AISummaryExportMenu(props: AISummaryExportMenuProps) {
           setError(getAIErrorMessage(err, '分享失敗，請稍後再試'));
         }
       },
-    },
-    {
-      id: 'pdf',
-      label: '儲存為 PDF',
-      icon: Printer,
-      onClick: () =>
-        run(() => {
-          openSummaryPrintPdf(ctx);
-        }, '請在列印對話框選擇「儲存為 PDF」'),
     },
     {
       id: 'txt',

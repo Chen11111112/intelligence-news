@@ -68,9 +68,11 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
   if (
     lower.includes('timeout') ||
     lower.includes('deadline') ||
-    lower.includes('timed out')
+    lower.includes('timed out') ||
+    lower.includes('504') ||
+    lower.includes('gateway timeout')
   ) {
-    return 'AI 服務回應逾時，請稍後再試';
+    return 'AI 回應逾時。建議改用 meta/llama-3.1-8b-instruct，並確認 Nginx proxy_read_timeout 至少 300 秒。';
   }
 
   if (

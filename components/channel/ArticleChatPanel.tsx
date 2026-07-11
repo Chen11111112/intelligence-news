@@ -20,7 +20,7 @@ import { AIErrorMessage } from '@/components/AIErrorMessage';
 import { getAIErrorMessage } from '@/lib/ai/errors';
 import { speechErrorLabel, t } from '@/lib/copy';
 import { useAIArticleAccess } from '@/hooks/useAIArticleAccess';
-import { useSpeechRecognition, speakText } from '@/hooks/useSpeechRecognition';
+import { useSpeechRecognition, useSpeechSynthesis } from '@/hooks/useSpeechRecognition';
 import type { ChannelChatMessage, ChannelOralResult } from '@/lib/channel';
 import type { NewsArticle, ExamTarget } from '@/lib/data';
 import { cn } from '@/lib/utils';
@@ -41,14 +41,26 @@ export function ArticleChatPanel({
   const aiAccess = useAIArticleAccess(article.id);
   const { supported: micSupported, listening, error: micError, listen, stop } =
     useSpeechRecognition('en-US');
+  const { speaking, speak, stop: stopSpeech } = useSpeechSynthesis();
 
   const [messages, setMessages] = useState<ChannelChatMessage[]>([]);
   const [oralMeta, setOralMeta] = useState<ChannelOralResult | null>(null);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [autoSpeak, setAutoSpeak] = useState(true);
+  const [autoSpeak, setAutoSpeak] = useState(false);
+  const autoSpeakRef = useRef(autoSpeak);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    autoSpeakRef.current = autoSpeak;
+  }, [autoSpeak]);
+
+  useEffect(() => {
+    return () => {
+      stopSpeech();
+    };
+  }, [stopSpeech]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -77,7 +89,7 @@ export function ArticleChatPanel({
         const reply = await channelDiscuss(article.id, nextMessages, examType, examScore);
         aiAccess.recordUsage();
         setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
-        if (autoSpeak) speakText(reply);
+        if (autoSpeakRef.current) speak(reply);
       } catch (err) {
         setError(getAIErrorMessage(err, t('channel.sendFailed')));
         setMessages(messages);
@@ -85,7 +97,7 @@ export function ArticleChatPanel({
         setLoading(false);
       }
     },
-    [article.id, messages, loading, examType, examScore, aiAccess, autoSpeak, t],
+    [article.id, messages, loading, examType, examScore, aiAccess, speak, t],
   );
 
   const sendOral = useCallback(
@@ -110,15 +122,23 @@ export function ArticleChatPanel({
         aiAccess.recordUsage();
         setOralMeta(result);
         setMessages((prev) => [...prev, { role: 'assistant', content: result.reply }]);
-        if (autoSpeak) speakText(result.reply);
+        if (autoSpeakRef.current) speak(result.reply);
       } catch (err) {
         setError(getAIErrorMessage(err, t('channel.oralFailed')));
       } finally {
         setLoading(false);
       }
     },
-    [article.id, messages, loading, examType, examScore, aiAccess, autoSpeak, t],
+    [article.id, messages, loading, examType, examScore, aiAccess, speak, t],
   );
+
+  const toggleAutoSpeak = () => {
+    setAutoSpeak((current) => {
+      const next = !current;
+      if (!next) stopSpeech();
+      return next;
+    });
+  };
 
   const handleMic = () => {
     if (listening) {
@@ -140,8 +160,8 @@ export function ArticleChatPanel({
     'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=400';
 
   return (
-    <div className="flex flex-col h-full min-h-[420px] ui-card overflow-hidden">
-      <div className="flex items-start gap-3 p-4 border-b ui-divider bg-slate-50/80 dark:bg-gray-900/50">
+    <div className="flex flex-col h-full min-h-0 ui-card overflow-hidden">
+      <div className="flex items-start gap-3 p-4 border-b ui-divider bg-slate-50/80 dark:bg-gray-900/50 shrink-0">
         <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-slate-100 dark:bg-gray-700">
           <ArticleImage
             src={article.imageUrl || fallbackImage}
@@ -164,11 +184,17 @@ export function ArticleChatPanel({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
-            onClick={() => setAutoSpeak((v) => !v)}
-            className="p-2 rounded-lg text-slate-500 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-700"
+            onClick={toggleAutoSpeak}
+            className={cn(
+              'p-2 rounded-lg transition-colors',
+              autoSpeak || speaking
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40'
+                : 'text-slate-500 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-700',
+            )}
             title={autoSpeak ? t('channel.muteTts') : t('channel.enableTts')}
+            aria-pressed={autoSpeak}
           >
-            {autoSpeak ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            {autoSpeak || speaking ? <Volume2 size={18} /> : <VolumeX size={18} />}
           </button>
           <button
             type="button"
@@ -181,7 +207,10 @@ export function ArticleChatPanel({
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div
+        ref={scrollRef}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-3"
+      >
         {!aiAccess.isLoggedIn && (
           <AILoginPrompt className="mb-4" />
         )}
@@ -244,7 +273,7 @@ export function ArticleChatPanel({
       </div>
 
       {(error || micErrorLabel) && (
-        <div className="px-4 py-2 border-t border-red-50 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30">
+        <div className="px-4 py-2 border-t border-red-50 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30 shrink-0">
           {error ? (
             <AIErrorMessage
               message={error}
@@ -261,7 +290,7 @@ export function ArticleChatPanel({
       )}
 
       <form
-        className="p-3 border-t ui-divider bg-white dark:bg-gray-800 flex gap-2 items-end"
+        className="p-3 border-t ui-divider bg-white dark:bg-gray-800 flex gap-2 items-end shrink-0"
         onSubmit={(e) => {
           e.preventDefault();
           void sendText(input);
@@ -305,7 +334,7 @@ export function ArticleChatPanel({
         </button>
       </form>
 
-      <div className="px-4 pb-3 flex justify-between items-center text-[10px] ui-subtle">
+      <div className="px-4 pb-3 flex justify-between items-center text-[10px] ui-subtle shrink-0">
         <Link href={`/article/${article.id}`} className="hover:text-blue-600 dark:hover:text-blue-400">
           {t('channel.readFull')} →
         </Link>

@@ -6,6 +6,7 @@ import { persistCrawlTags } from '@/lib/crawl/config';
 import { DEFAULT_UI_LOCALE, type UILocale } from '@/lib/i18n/locale';
 import { isValidTagSlug } from '@/lib/tags/selectable';
 import type { AISummaryCacheEntry, AISummariesCache } from '@/lib/ai/summaries';
+import type { AIQuizCacheEntry, AIQuizzesCache } from '@/lib/ai/quizzes';
 import type { AIUsageRecord, ExamScores } from '@/lib/user/types';
 import { clampTagPreferences, tagSlugsToTopics } from '@/lib/user/types';
 import {
@@ -18,6 +19,8 @@ import {
   loadAIUsageFromDb as loadAIUsageFromDbCore,
   loadAISummariesFromDb as loadAISummariesFromDbCore,
   persistAISummaryToDb as persistAISummaryToDbCore,
+  loadAIQuizzesFromDb as loadAIQuizzesFromDbCore,
+  persistAIQuizToDb as persistAIQuizToDbCore,
   type UserProfileDocument,
 } from '@/lib/user/profile-db';
 
@@ -142,4 +145,21 @@ export async function persistAISummaryToDb(
     return { ok: true };
   }
   return persistAISummaryToDbCore(session.user.id, articleId, entry);
+}
+
+export async function loadAIQuizzesFromDb(): Promise<AIQuizzesCache> {
+  const session = await auth();
+  if (!session?.user?.id) return {};
+  return loadAIQuizzesFromDbCore(session.user.id);
+}
+
+export async function persistAIQuizToDb(
+  articleId: string,
+  entry: AIQuizCacheEntry,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { ok: true };
+  }
+  return persistAIQuizToDbCore(session.user.id, articleId, entry);
 }

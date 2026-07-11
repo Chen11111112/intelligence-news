@@ -129,7 +129,7 @@ export function ChannelClient() {
             })}
           </section>
 
-          <section className="lg:col-span-7 lg:sticky lg:top-24 lg:self-start min-h-[480px]">
+          <section className="lg:col-span-7 lg:sticky lg:top-24 lg:self-start h-[min(70vh,640px)] max-h-[calc(100dvh-7rem)]">
             {selected ? (
               <ArticleChatPanel
                 key={selected.id}
@@ -139,7 +139,7 @@ export function ChannelClient() {
                 onClose={() => setSelected(null)}
               />
             ) : (
-              <div className="ui-empty bg-white dark:bg-gray-800 p-12 text-center">
+              <div className="ui-empty bg-white dark:bg-gray-800 p-12 text-center h-full flex items-center justify-center">
                 {t('channel.selectPrompt')}
               </div>
             )}

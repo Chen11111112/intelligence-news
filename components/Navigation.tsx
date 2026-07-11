@@ -3,9 +3,11 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Search, Bell, Menu, User, Bookmark } from 'lucide-react';
+import { Search, Bell, Menu, User, Bookmark, CircleHelp } from 'lucide-react';
 import { t } from '@/lib/copy';
 import { useNotifications } from '@/hooks/useNotifications';
+
+const GUIDE_URL = 'https://hackmd.io/@HyC-1029/Sk_7Ac1VMx';
 
 export function TopAppBar() {
   const pathname = usePathname();
@@ -36,7 +38,9 @@ export function TopAppBar() {
           <NavButton href="/profile" active={pathname === '/profile'}>
             {t('nav.profile')}
           </NavButton>
+          <GuideButton />
         </div>
+        <GuideButton className="md:hidden" />
         <Link
           href="/notifications"
           className="relative p-2 hover:bg-slate-100 rounded-xl transition-colors active:scale-95 text-slate-600 dark:text-gray-300 dark:hover:bg-gray-800"
@@ -72,6 +76,21 @@ function NavButton({ children, href, active }: NavButtonProps) {
     >
       {children}
     </Link>
+  );
+}
+
+function GuideButton({ className = '' }: { className?: string }) {
+  return (
+    <a
+      href={GUIDE_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all text-slate-600 hover:bg-slate-50 hover:text-blue-600 dark:text-gray-300 dark:hover:bg-gray-800 ${className}`}
+      aria-label={t('nav.guide')}
+    >
+      <CircleHelp className="w-4 h-4" />
+      {t('nav.guide')}
+    </a>
   );
 }
 
