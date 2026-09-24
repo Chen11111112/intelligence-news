@@ -14,17 +14,18 @@ export function TopAppBar() {
   const { unread } = useNotifications();
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 md:px-10 h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 dark:bg-gray-900/80 dark:border-gray-800">
-      <div className="flex items-center">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 dark:bg-gray-900/80 dark:border-gray-800 pt-[env(safe-area-inset-top,0px)]">
+      <div className="flex h-16 min-h-16 items-center justify-between gap-2 px-4 md:px-10">
+      <div className="flex min-w-0 items-center">
         <Link
           href="/"
-          className="font-sans text-xl font-bold text-slate-800 cursor-pointer tracking-tight dark:text-gray-100"
+          className="font-sans text-base sm:text-xl font-bold text-slate-800 cursor-pointer tracking-tight dark:text-gray-100 truncate max-w-[min(52vw,14rem)] sm:max-w-none"
         >
           {t('brand.title')} <span className="text-blue-600">{t('brand.accent')}</span>
         </Link>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-4">
         <div className="hidden md:flex gap-1">
           <NavButton href="/" active={pathname === '/' || pathname.startsWith('/explore')}>
             {t('nav.explore')}
@@ -53,6 +54,7 @@ export function TopAppBar() {
             </span>
           )}
         </Link>
+      </div>
       </div>
     </header>
   );

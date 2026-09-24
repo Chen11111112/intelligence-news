@@ -1,20 +1,9 @@
-const authUrl =
-  process.env.AUTH_URL ??
-  process.env.NEXTAUTH_URL ??
-  (process.env.NODE_ENV === 'production'
-    ? 'https://intelligence-news.ntubimdbirc.tw'
-    : undefined);
+import type { NextConfig } from 'next';
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  ...(authUrl
-    ? {
-        env: {
-          AUTH_URL: authUrl,
-          NEXTAUTH_URL: authUrl,
-        },
-      }
-    : {}),
+const nextConfig: NextConfig = {
+  allowedDevOrigins: ['intelligence-news.hychen.space'],
+  // 僅 development；正式 `next start` 不會顯示左下角 Next 圖示
+  devIndicators: false,
   experimental: {
     serverActions: {
       allowedOrigins: [
@@ -22,8 +11,11 @@ const nextConfig = {
         'https://intelligence-news.ntubimdbirc.tw',
         'http://localhost:3000',
         'http://localhost:3001',
+        'http://localhost:3002',
         'http://127.0.0.1:3000',
         'http://127.0.0.1:3001',
+        'http://127.0.0.1:3002',
+        'https://intelligence-news.hychen.space'
       ],
     },
   },
@@ -54,6 +46,7 @@ const nextConfig = {
       },
     ],
   },
+  
 };
 
 export default nextConfig;

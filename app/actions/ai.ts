@@ -72,7 +72,7 @@ Return JSON with these fields:
 
 Text: ${trimmed}`;
 
-    const parsed = await nimChatJSON<AISummary>(systemPrompt, userPrompt, 1536);
+    const parsed = await nimChatJSON<AISummary>(systemPrompt, userPrompt, 4096);
     const summary = normalizeAISummary(parsed);
     await recordAIQuotaUsage(session.user.id!, articleId);
     return summary;
@@ -115,7 +115,7 @@ ${articleExcerpt}`;
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const parsed = await nimChatJSON<unknown>(systemPrompt, userPrompt, 1400, {
+        const parsed = await nimChatJSON<unknown>(systemPrompt, userPrompt, 3072, {
           temperature: 0.25,
           guidedJson: attempt === 0 ? QUIZ_JSON_SCHEMA : undefined,
           retries: 0,

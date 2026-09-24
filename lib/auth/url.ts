@@ -16,7 +16,7 @@ export function getAuthUrl(): string | undefined {
   const raw =
     process.env.AUTH_URL ??
     process.env.NEXTAUTH_URL ??
-    (process.env.NODE_ENV === 'production' ? PRODUCTION_AUTH_URL : undefined);
+    (process.env.NODE_ENV === 'production' ? PRODUCTION_AUTH_URL : 'http://localhost:3002');
 
   return normalizeAuthUrl(raw);
 }

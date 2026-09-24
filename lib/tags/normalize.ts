@@ -31,12 +31,11 @@ export function articleBelongsToTagSlug(
   article: { topic: string; tagSlugs?: string[] },
   slug: string,
 ): boolean {
-  if (article.tagSlugs?.length) {
-    return article.tagSlugs.includes(slug);
-  }
   const meta = getTopicBySlug(slug);
   const topic = normalizeTopic(article.topic);
-  return meta && topic ? topic === meta.topic : false;
+  // 分類頁以主 topic 為準，避免跨 RSS 合併的次要 tagSlugs 造成誤分類
+  if (meta && topic) return topic === meta.topic;
+  return article.tagSlugs?.includes(slug) ?? false;
 }
 
 export function articleMatchesSelectedTags(

@@ -170,6 +170,10 @@ export function useSpeechRecognition(lang = 'en-US') {
     setListening(false);
   }, []);
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   const listen = useCallback(
     (onResult: (transcript: string) => void) => {
       const Ctor = getRecognitionCtor();
@@ -202,7 +206,7 @@ export function useSpeechRecognition(lang = 'en-US') {
     [lang],
   );
 
-  return { supported, listening, error, listen, stop };
+  return { supported, listening, error, listen, stop, clearError };
 }
 
 // 預先載入語音清單

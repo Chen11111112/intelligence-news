@@ -38,7 +38,9 @@ function LoginContent() {
 
           <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900 rounded-lg p-3">
 
-            登入失敗（{error}）。請確認 Google OAuth 與 MongoDB 環境變數已正確設定。
+            {error === 'OAuthAccountNotLinked'
+              ? '此 Google 信箱曾以其他方式建立過帳號，系統已調整連結設定；請再試一次登入。若仍失敗請聯絡管理員。'
+              : `登入失敗（${error}）。請確認 Google OAuth 與 MongoDB 環境變數已正確設定。`}
 
           </p>
 

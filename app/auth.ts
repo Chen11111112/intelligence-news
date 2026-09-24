@@ -1,7 +1,6 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
-import { MongoDBAdapter } from '@auth/mongodb-adapter';
-import clientPromise from '@/lib/db';
+import { createAuthAdapter } from '@/lib/auth/mongodb-adapter';
 import { ensureAuthEnv, getAuthUrl, getGoogleRedirectUri } from '@/lib/auth-url';
 
 ensureAuthEnv();
@@ -10,6 +9,11 @@ const authUrl = getAuthUrl();
 const googleClientId = process.env.AUTH_GOOGLE_ID?.trim();
 const googleClientSecret = process.env.AUTH_GOOGLE_SECRET?.trim();
 const useSecureCookies = authUrl?.startsWith('https://') ?? process.env.NODE_ENV === 'production';
+
+if (process.env.NODE_ENV !== 'production') {
+  console.info('[auth] AUTH_URL =', authUrl);
+  console.info('[auth] Google redirect =', getGoogleRedirectUri());
+}
 
 if (process.env.NODE_ENV === 'production') {
   if (!authUrl) {
@@ -24,11 +28,12 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: MongoDBAdapter(clientPromise),
+  adapter: createAuthAdapter(),
   providers: [
     Google({
       clientId: googleClientId,
       clientSecret: googleClientSecret,
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
   secret: process.env.AUTH_SECRET,
@@ -41,6 +46,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: 'database',
   },
   callbacks: {
+    async signIn({ account, profile }) {
+      if (account?.provider === 'google') {
+        const sub = profile && 'sub' in profile ? profile.sub : undefined;
+        if (typeof sub === 'string') {
+          account.providerAccountId = sub;
+        } else if (account.providerAccountId != null) {
+          account.providerAccountId = String(account.providerAccountId);
+        }
+      }
+      return true;
+    },
     async session({ session, user }) {
       if (session.user && user.id) {
         session.user.id = user.id;

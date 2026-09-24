@@ -110,7 +110,7 @@ Latest learner message: ${lastUser}`;
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      { maxTokens: 1024 },
+      { maxTokens: 2048 },
     );
 
     const reply = text.trim();
@@ -179,7 +179,7 @@ Tasks:
 
     let parsed: OralFeedbackPayload;
     try {
-      parsed = await nimChatJSON<OralFeedbackPayload>(systemPrompt, userPrompt, 1536, {
+      parsed = await nimChatJSON<OralFeedbackPayload>(systemPrompt, userPrompt, 3072, {
         temperature: 0.35,
         guidedJson: ORAL_FEEDBACK_JSON_SCHEMA,
         retries: 1,
@@ -191,7 +191,7 @@ Tasks:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        { maxTokens: 1536 },
+        { maxTokens: 3072 },
       );
       parsed = JSON.parse(extractJsonFromText(raw)) as OralFeedbackPayload;
     }

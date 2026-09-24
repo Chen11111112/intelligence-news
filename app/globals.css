@@ -13,6 +13,8 @@
   --border-muted: #f1f5f9;
   --text-muted: #64748b;
   --text-subtle: #94a3b8;
+  --app-header-height: 4rem;
+  --app-header-offset: calc(env(safe-area-inset-top, 0px) + var(--app-header-height));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,6 +48,16 @@ body {
 }
 
 @layer components {
+  .pt-below-app-header {
+    padding-top: calc(var(--app-header-offset) + 1rem);
+  }
+
+  @media (min-width: 640px) {
+    .pt-below-app-header {
+      padding-top: calc(var(--app-header-offset) + 0.5rem);
+    }
+  }
+
   .ui-page {
     @apply text-slate-800 dark:text-gray-100;
   }

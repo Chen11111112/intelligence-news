@@ -39,7 +39,7 @@ export function ArticleChatPanel({
   onClose,
 }: ArticleChatPanelProps) {
   const aiAccess = useAIArticleAccess(article.id);
-  const { supported: micSupported, listening, error: micError, listen, stop } =
+  const { supported: micSupported, listening, error: micError, listen, stop, clearError: clearMicError } =
     useSpeechRecognition('en-US');
   const { speaking, speak, stop: stopSpeech } = useSpeechSynthesis();
 
@@ -51,6 +51,19 @@ export function ArticleChatPanel({
   const [autoSpeak, setAutoSpeak] = useState(false);
   const autoSpeakRef = useRef(autoSpeak);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const resizeInput = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const next = Math.min(Math.max(el.scrollHeight, 42), 160);
+    el.style.height = `${next}px`;
+  }, []);
+
+  useEffect(() => {
+    resizeInput();
+  }, [input, resizeInput]);
 
   useEffect(() => {
     autoSpeakRef.current = autoSpeak;
@@ -226,7 +239,7 @@ export function ArticleChatPanel({
           <div
             key={i}
             className={cn(
-              'max-w-[90%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
+              'w-fit max-w-[min(92%,36rem)] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words',
               msg.role === 'user'
                 ? 'ml-auto bg-blue-600 text-white'
                 : 'mr-auto bg-slate-100 dark:bg-gray-700 text-slate-800 dark:text-gray-100',
@@ -237,7 +250,7 @@ export function ArticleChatPanel({
         ))}
 
         {oralMeta && (oralMeta.corrections.length > 0 || oralMeta.correctedSentence) && (
-          <div className="mr-auto max-w-[95%] rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/40 p-4 space-y-3 text-sm">
+          <div className="mr-auto w-fit max-w-[min(95%,36rem)] rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/40 p-4 space-y-3 text-sm">
             <p className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wide">
               {t('channel.oralCorrections')}
             </p>
@@ -274,18 +287,34 @@ export function ArticleChatPanel({
 
       {(error || micErrorLabel) && (
         <div className="px-4 py-2 border-t border-red-50 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30 shrink-0">
-          {error ? (
-            <AIErrorMessage
-              message={error}
-              needsLogin={aiAccess.checkAccess().needsLogin}
-              className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1.5"
-            />
-          ) : (
-            <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1.5">
-              <AlertCircle size={14} />
-              {micErrorLabel}
-            </p>
-          )}
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              {error ? (
+                <AIErrorMessage
+                  message={error}
+                  needsLogin={aiAccess.checkAccess().needsLogin}
+                  className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1.5"
+                />
+              ) : (
+                <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1.5">
+                  <AlertCircle size={14} className="shrink-0" />
+                  {micErrorLabel}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                clearMicError();
+              }}
+              className="shrink-0 p-1 rounded-md text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-100/80 dark:hover:bg-red-900/40 transition"
+              aria-label={t('common.close')}
+              title={t('common.close')}
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -312,12 +341,13 @@ export function ArticleChatPanel({
           {listening ? <MicOff size={20} /> : <Mic size={20} />}
         </button>
         <textarea
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           rows={1}
           placeholder={aiAccess.isLoggedIn ? t('channel.inputPlaceholder') : t('ai.loginRequired')}
           disabled={!aiAccess.isLoggedIn}
-          className="flex-1 resize-none ui-input px-3 py-2.5 text-sm max-h-28 disabled:opacity-60"
+          className="flex-1 resize-none ui-input px-3 py-2.5 text-sm overflow-hidden disabled:opacity-60 min-h-[42px]"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();

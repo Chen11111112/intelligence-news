@@ -446,13 +446,8 @@ def main() -> int:
                     seen_ids.add(a["id"])
                     new_articles.append(a)
                 else:
-                    # 合併 tagSlugs 到既有文章（若重複）
-                    for existing in all_articles:
-                        if existing["id"] == a["id"]:
-                            existing.setdefault("tagSlugs", [])
-                            if tag_slug not in existing["tagSlugs"]:
-                                existing["tagSlugs"].append(tag_slug)
-                            break
+                    # 同一篇文章只保留首次出現的分類（主 topic / 第一個 tag）
+                    continue
             print(f"  -> {len(new_articles)} new articles")
             all_articles.extend(new_articles)
         except Exception as exc:  # noqa: BLE001

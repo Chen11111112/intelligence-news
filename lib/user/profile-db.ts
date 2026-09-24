@@ -21,6 +21,37 @@ export interface UserProfileDocument {
   updatedAt: Date;
 }
 
+/** 可從 RSC 傳入 Client Component 的 plain object */
+export type UserProfileClient = Omit<UserProfileDocument, 'updatedAt'> & {
+  updatedAt: string;
+};
+
+export function toUserProfileClient(
+  doc: UserProfileDocument & { _id?: unknown },
+): UserProfileClient {
+  const updatedAt =
+    doc.updatedAt instanceof Date
+      ? doc.updatedAt.toISOString()
+      : typeof doc.updatedAt === 'string'
+        ? doc.updatedAt
+        : new Date().toISOString();
+
+  return {
+    userId: doc.userId,
+    email: doc.email,
+    examType: doc.examType,
+    examScores: doc.examScores,
+    uiLocale: doc.uiLocale,
+    topicPreferences: doc.topicPreferences,
+    tagPreferences: doc.tagPreferences,
+    bookmarks: doc.bookmarks,
+    aiUsage: doc.aiUsage,
+    aiSummaries: doc.aiSummaries,
+    aiQuizzes: doc.aiQuizzes,
+    updatedAt,
+  };
+}
+
 const COLLECTION = 'user_profiles';
 
 const DEFAULT_PROFILE = (userId: string, email?: string | null): UserProfileDocument => ({
@@ -87,7 +118,10 @@ export async function getUserProfileFromDb(
           : getDefaultTagPreferences(),
     );
 
-    const { plan: _plan, ...rest } = existing as UserProfileDocument & { plan?: string };
+    const { plan: _plan, _id: _mongoId, ...rest } = existing as UserProfileDocument & {
+      plan?: string;
+      _id?: unknown;
+    };
 
     return {
       ...DEFAULT_PROFILE(userId, email),

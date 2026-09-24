@@ -12,6 +12,8 @@ import {
   Save,
   Tag,
   X,
+  Zap,
+  ChevronRight,
 } from 'lucide-react';
 import {
   persistUserProfile,
@@ -25,9 +27,7 @@ import type { ExamTarget } from '@/lib/data';
 import { ALL_SELECTABLE_TAGS } from '@/lib/tags';
 import { cn } from '@/lib/utils';
 import { clampTagPreferences, getDailyAILimit, getMaxTags, tagSlugsToTopics, type ExamScores } from '@/lib/user';
-import type { UserProfileDocument } from '@/lib/user/profile-db';
-import SectionHeader from '@/components/Profile/SectionHeader';
-import { SelectedTagsChips } from '@/components/SelectedTagsChips';
+import type { UserProfileClient } from '@/lib/user/profile-db';
 import { mergeAISummariesFromCloud } from '@/lib/ai-summaries';
 import { DEFAULT_UI_LOCALE } from '@/lib/locale';
 import type { Session } from 'next-auth';
@@ -37,7 +37,7 @@ type ExamType = ExamTarget;
 
 interface ProfileFormProps {
   session: Session;
-  initialProfile: UserProfileDocument | null;
+  initialProfile: UserProfileClient | null;
   profileLoadError?: string | null;
 }
 
@@ -59,12 +59,14 @@ export default function ProfileForm({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [crawlSynced, setCrawlSynced] = useState(false);
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
-  const [isExamSettingsOpen, setIsExamSettingsOpen] = useState(false);
+  const [isExamModalOpen, setIsExamModalOpen] = useState(false);
   const [dbError, setDbError] = useState<string | null>(profileLoadError);
   const [profileHydrated, setProfileHydrated] = useState(false);
 
   const maxTags = getMaxTags();
   const aiLimit = getDailyAILimit();
+  const aiUsed = settings?.aiUsage.articleIds.length ?? 0;
+  const aiLeft = Math.max(0, aiLimit - aiUsed);
 
   useEffect(() => {
     if (profileHydrated) return;
@@ -101,7 +103,7 @@ export default function ProfileForm({
 
   const toggleTag = (slug: string) => {
     setSelectedTags((prev) => {
-      if (prev.includes(slug)) return prev.filter((t) => t !== slug);
+      if (prev.includes(slug)) return prev.filter((item) => item !== slug);
       if (prev.length >= maxTags) return prev;
       return [...prev, slug];
     });
@@ -153,6 +155,8 @@ export default function ProfileForm({
       setSaveError(t('profile.crawlSyncFailed'));
     }
 
+    setIsTagsModalOpen(false);
+    setIsExamModalOpen(false);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };
@@ -160,16 +164,16 @@ export default function ProfileForm({
   const renderScoreOptions = () => {
     if (activeExam === 'IELTS') {
       return ['5.5', '6.0', '6.5', '7.0', '7.5', '8.0', '8.5', '9.0'].map((s) => (
-        <option key={s} value={s}>{s} ?</option>
+        <option key={s} value={s}>{s}</option>
       ));
     }
     if (activeExam === 'TOEFL') {
       return ['60', '70', '80', '90', '100', '110', '120'].map((s) => (
-        <option key={s} value={s}>{s} ?</option>
+        <option key={s} value={s}>{s}</option>
       ));
     }
     return ['550', '650', '750', '850', '950'].map((s) => (
-      <option key={s} value={s}>{s} ?</option>
+      <option key={s} value={s}>{s}</option>
     ));
   };
 
@@ -200,8 +204,8 @@ export default function ProfileForm({
 
   return (
     <div className="space-y-10">
-      <section className="flex flex-col items-center text-center">
-        <div className="relative w-32 h-32 mb-6">
+      <section className="flex flex-col items-center text-center scroll-mt-[var(--app-header-offset)]">
+        <div className="relative w-32 h-32 mb-6 shrink-0">
           <Image
             src={session.user?.image || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400'}
             className="rounded-full w-32 h-32 object-cover border-4 border-white dark:border-gray-700 shadow"
@@ -213,60 +217,170 @@ export default function ProfileForm({
             <CheckCircle2 size={16} fill="white" className="text-blue-600" />
           </div>
         </div>
-        <h2 className="text-3xl font-bold ui-heading">{session.user?.name || 'David Chen'}</h2>
+        <h2 className="text-3xl font-bold ui-heading">{session.user?.name || 'User'}</h2>
         <p className="ui-muted font-medium mt-1 flex items-center gap-2">
           <Award size={18} className="text-amber-500" />
           {t('profile.member', { exam: activeExam, score: scores[activeExam] })}
         </p>
-        <p className="text-xs ui-muted mt-2">
-          {t('profile.usageLimits', { ai: aiLimit, tags: maxTags })}
-        </p>
         {dbError && <p className="text-xs text-red-500 mt-2">{dbError}</p>}
-        <SelectedTagsChips
-          tagSlugs={selectedTags}
-          className="mt-4 max-w-lg mx-auto text-left"
-          emptyMessage={t('profile.noTagsProfile')}
-        />
       </section>
 
-      <section className="ui-card p-6 space-y-4">
-        <SectionHeader
-          icon={<Tag className="text-blue-600" size={22} />}
-          title={t('profile.tags')}
-          onViewMore={() => setIsTagsModalOpen(true)}
-        />
-        <p className="text-sm ui-muted">
-          {t('profile.tagsDesc', { current: selectedTags.length, max: maxTags })}
-        </p>
-        <SelectedTagsChips
-          tagSlugs={selectedTags}
-          className="p-4 rounded-xl ui-card-muted"
-          emptyMessage={t('profile.noTagsYet')}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          {ALL_SELECTABLE_TAGS.map((tag) => renderTagButton(tag.slug, tag.en))}
+      <section className="space-y-3" aria-label={t('profile.overview')}>
+        <h3 className="text-sm font-bold ui-muted tracking-wide uppercase">{t('profile.overview')}</h3>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => setIsTagsModalOpen(true)}
+            className="ui-card p-4 text-left space-y-3 w-full transition hover:ring-2 hover:ring-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <div className="flex items-center gap-2 text-sm font-bold ui-heading">
+              <Tag size={16} className="text-blue-600" />
+              {t('profile.overviewTags')}
+              <span className="ml-auto text-xs font-semibold ui-muted">
+                {selectedTags.length}/{maxTags}
+              </span>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+            {selectedTags.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {selectedTags.map((slug) => (
+                  <span
+                    key={slug}
+                    className="inline-flex items-center rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 px-2 py-1 text-xs font-semibold"
+                  >
+                    {tagLabel(slug)}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs ui-muted">{t('profile.noTagsProfile')}</p>
+            )}
+            <p className="text-xs font-semibold text-blue-600">{t('profile.overviewTapEdit')}</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsExamModalOpen(true)}
+            className="ui-card p-4 text-left space-y-3 w-full transition hover:ring-2 hover:ring-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <div className="flex items-center gap-2 text-sm font-bold ui-heading">
+              <BookOpen size={16} className="text-blue-600" />
+              {t('profile.overviewExam')}
+              <ChevronRight size={16} className="ml-auto text-slate-400" />
+            </div>
+            <p className="text-2xl font-bold ui-heading tracking-tight">
+              {activeExam}
+              <span className="ml-2 text-lg font-semibold text-blue-600">{scores[activeExam]}</span>
+            </p>
+            <p className="text-xs font-semibold text-blue-600">{t('profile.overviewTapEdit')}</p>
+          </button>
+
+          <div className="ui-card p-4 text-left space-y-3">
+            <div className="flex items-center gap-2 text-sm font-bold ui-heading">
+              <Zap size={16} className="text-amber-500" />
+              {t('profile.overviewAi')}
+            </div>
+            <p className="text-2xl font-bold ui-heading tracking-tight">
+              {t('profile.overviewAiUnit', { used: aiUsed, limit: aiLimit })}
+            </p>
+            <div className="h-2 rounded-full bg-slate-100 dark:bg-gray-800 overflow-hidden">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all',
+                  aiLeft === 0 ? 'bg-rose-500' : 'bg-blue-600',
+                )}
+                style={{ width: `${Math.min(100, (aiUsed / aiLimit) * 100)}%` }}
+              />
+            </div>
+            <p className="text-xs ui-muted">
+              {aiLeft === 0
+                ? t('profile.overviewAiFull')
+                : t('profile.overviewAiLeft', { left: aiLeft })}
+            </p>
+            <p className="text-xs ui-muted">{t('profile.overviewAiReadonly')}</p>
+          </div>
         </div>
-        {crawlSynced && (
-          <p className="text-xs text-emerald-600">{t('profile.crawlSynced')}</p>
-        )}
       </section>
 
-      <section className="ui-card p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <SectionHeader
-            icon={<BookOpen className="text-blue-600" size={22} />}
-            title={t('profile.exam')}
-            showAiUsage
-            setIsExamSettingsOpen={setIsExamSettingsOpen}
-          />
-        </div>
+      {saveError && <p className="text-sm text-red-500 text-center">{saveError}</p>}
+      {crawlSynced && (
+        <p className="text-xs text-emerald-600 text-center">{t('profile.crawlSynced')}</p>
+      )}
 
-        {!isExamSettingsOpen ? (
-          <p className="text-sm ui-muted">
-            {t('profile.examCurrent', { exam: activeExam, score: scores[activeExam] })}
-          </p>
+      {/* <button
+        type="button"
+        onClick={handleSaveProfile}
+        className="w-full bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 active:scale-[0.99] transition flex items-center justify-center gap-2 shadow"
+      >
+        {isSaved ? (
+          <>
+            <CheckCircle2 size={18} className="text-emerald-400" fill="currentColor" />
+            <span>{t('profile.saved')}</span>
+          </>
         ) : (
-          <div className="space-y-6">
+          <>
+            <Save size={18} />
+            <span>{t('profile.saveAll')}</span>
+          </>
+        )}
+      </button> */}
+      <LogoutButton />
+
+      {isTagsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div
+            className="absolute inset-0 ui-overlay"
+            onClick={() => setIsTagsModalOpen(false)}
+            role="presentation"
+          />
+          <div className="ui-modal w-full max-w-md relative z-10 p-6 space-y-4 overflow-visible animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b ui-divider">
+              <h4 className="text-lg font-bold ui-heading">{t('profile.tags')}</h4>
+              <button
+                type="button"
+                onClick={() => setIsTagsModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 dark:text-gray-500 hover:bg-slate-50 dark:hover:bg-gray-700 hover:text-slate-600 dark:hover:text-gray-300 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-xs ui-muted">
+              {t('profile.tagsDesc', { current: selectedTags.length, max: maxTags })}
+            </p>
+            <div className="flex flex-wrap gap-2 py-1">
+              {ALL_SELECTABLE_TAGS.map((tag) => renderTagButton(tag.slug, tag.en))}
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveProfile}
+              className="w-full bg-slate-900 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition flex items-center justify-center gap-2"
+            >
+              <Save size={16} />
+              {t('profile.saveAll')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isExamModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div
+            className="absolute inset-0 ui-overlay"
+            onClick={() => setIsExamModalOpen(false)}
+            role="presentation"
+          />
+          <div className="ui-modal w-full max-w-md relative z-10 p-6 space-y-5 overflow-visible animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b ui-divider">
+              <h4 className="text-lg font-bold ui-heading">{t('profile.exam')}</h4>
+              <button
+                type="button"
+                onClick={() => setIsExamModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 dark:text-gray-500 hover:bg-slate-50 dark:hover:bg-gray-700 hover:text-slate-600 dark:hover:text-gray-300 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
             <div className="grid grid-cols-3 gap-3">
               {(['IELTS', 'TOEFL', 'TOEIC'] as ExamType[]).map((exam) => (
                 <button
@@ -308,57 +422,15 @@ export default function ProfileForm({
                 })}
               </p>
             </div>
-          </div>
-        )}
 
-        {saveError && <p className="text-sm text-red-500">{saveError}</p>}
-      </section>
-
-      <button
-        type="button"
-        onClick={handleSaveProfile}
-        className="w-full bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 active:scale-[0.99] transition flex items-center justify-center gap-2 shadow"
-      >
-        {isSaved ? (
-          <>
-            <CheckCircle2 size={18} className="text-emerald-400" fill="currentColor" />
-            <span>{t('profile.saved')}</span>
-          </>
-        ) : (
-          <>
-            <Save size={18} />
-            <span>{t('profile.saveAll')}</span>
-          </>
-        )}
-      </button>
-      <LogoutButton />
-
-      {isTagsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div
-            className="absolute inset-0 ui-overlay"
-            onClick={() => setIsTagsModalOpen(false)}
-            role="presentation"
-          />
-          <div className="ui-modal w-full max-w-md overflow-hidden relative z-10 p-6 space-y-4 max-h-[80vh] flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b ui-divider shrink-0">
-              <h4 className="text-lg font-bold ui-heading">{t('profile.allTags')}</h4>
-              <button
-                type="button"
-                onClick={() => setIsTagsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 dark:text-gray-500 hover:bg-slate-50 dark:hover:bg-gray-700 hover:text-slate-600 dark:hover:text-gray-300 transition"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <p className="text-xs ui-muted shrink-0">
-              {t('profile.tagsDesc', { current: selectedTags.length, max: maxTags })}
-            </p>
-            <div className="overflow-y-auto pr-1 flex-1 py-2">
-              <div className="flex flex-wrap gap-2">
-                {ALL_SELECTABLE_TAGS.map((tag) => renderTagButton(tag.slug, tag.en))}
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={handleSaveProfile}
+              className="w-full bg-slate-900 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition flex items-center justify-center gap-2"
+            >
+              <Save size={16} />
+              {t('profile.saveAll')}
+            </button>
           </div>
         </div>
       )}

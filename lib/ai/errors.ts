@@ -9,12 +9,15 @@ function extractMessage(error: unknown): string {
   return String(error);
 }
 
-/** 將 AI / NVIDIA NIM 相關錯誤轉為使用者可讀的繁體中文 */
+/** 將 AI / ChatAPI 相關錯誤轉為使用者可讀的繁體中文 */
 export function getAIErrorMessage(error: unknown, fallback: string): string {
   const message = extractMessage(error);
 
-  if (message === 'NVIDIA_API_KEY_MISSING') {
-    return '請在環境變數中設定 NVIDIA_API_KEY';
+  if (
+    message === 'CHATAPI_API_KEY_MISSING' ||
+    message === 'NVIDIA_API_KEY_MISSING'
+  ) {
+    return '請在環境變數中設定 CHATAPI_API_KEY';
   }
 
   if (CJK.test(message)) {
@@ -38,7 +41,7 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
     lower.includes('invalid api key') ||
     (lower.includes('invalid') && lower.includes('key'))
   ) {
-    return 'NVIDIA NIM API 金鑰無效或未設定，請聯繫管理員';
+    return 'AI API 金鑰無效或未設定，請聯繫管理員';
   }
 
   if (
@@ -50,11 +53,13 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
   }
 
   if (
+    lower.includes('chatapi') ||
     lower.includes('nvidia nim') ||
     lower.includes('nvapi') ||
-    lower.includes('integrate.api.nvidia.com')
+    lower.includes('integrate.api.nvidia.com') ||
+    lower.includes('chatapi.ntubimdbirc.tw')
   ) {
-    return 'NVIDIA NIM 服務暫時無法使用，請稍後再試';
+    return 'AI 服務暫時無法使用，請稍後再試';
   }
 
   if (lower.includes('403') || lower.includes('forbidden')) {
@@ -72,7 +77,7 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
     lower.includes('504') ||
     lower.includes('gateway timeout')
   ) {
-    return 'AI 回應逾時。建議改用 meta/llama-3.1-8b-instruct，並確認 Nginx proxy_read_timeout 至少 300 秒。';
+    return 'AI 回應逾時。請稍後再試，並確認 Nginx proxy_read_timeout 至少 300 秒。';
   }
 
   if (
