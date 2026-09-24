@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { getNewsById } from '@/lib/news';
 import ArticleDetailClient from './ArticleDetailClient';
 
+export const maxDuration = 120;
+
 interface ArticlePageProps {
   params: Promise<{ id: string }>;
 }

@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { NewsArticle } from '@/lib/types/data';
 import clientPromise from '@/lib/db';
+import { hasMongoUri } from '@/lib/env/runtime';
 import { saveNewsToDb as persistNews } from '@/lib/news/persist';
 
 export { persistNews as saveNewsToDb };
@@ -9,7 +10,7 @@ export { persistNews as saveNewsToDb };
 const COLLECTION = 'news';
 
 export async function getNewsFromDb(): Promise<NewsArticle[] | null> {
-  if (!process.env.MONGODB_URI) return null;
+  if (!hasMongoUri()) return null;
 
   try {
     const client = await clientPromise;

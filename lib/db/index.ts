@@ -1,8 +1,8 @@
 import { MongoClient, ServerApiVersion } from 'mongodb';
-
-const uri = process.env.MONGODB_URI;
+import { hasMongoUri, readRuntimeEnv } from '@/lib/env/runtime';
 
 function createClient(): MongoClient {
+  const uri = readRuntimeEnv('MONGODB_URI');
   if (!uri) {
     throw new Error(
       '請在 .env.local（本機）或 Vercel 環境變數中設定 MONGODB_URI。範例見專案根目錄 .env.example',
@@ -58,7 +58,7 @@ const lazyClientPromise: Promise<MongoClient> = {
 export default lazyClientPromise;
 
 export async function pingMongo(): Promise<boolean> {
-  if (!uri) return false;
+  if (!hasMongoUri()) return false;
   try {
     const client = await lazyClientPromise;
     await client.db().command({ ping: 1 });

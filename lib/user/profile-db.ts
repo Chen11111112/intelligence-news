@@ -1,5 +1,6 @@
 import type { ExamTarget, Topic } from '@/lib/types/data';
 import clientPromise from '@/lib/db';
+import { hasMongoUri } from '@/lib/env/runtime';
 import type { AISummariesCache, AISummaryCacheEntry } from '@/lib/ai/summaries';
 import type { AIQuizzesCache, AIQuizCacheEntry } from '@/lib/ai/quizzes';
 import { DEFAULT_UI_LOCALE, type UILocale } from '@/lib/i18n/locale';
@@ -71,7 +72,7 @@ export async function getUserProfileFromDb(
   userId: string,
   email?: string | null,
 ): Promise<UserProfileDocument> {
-  if (!process.env.MONGODB_URI) {
+  if (!hasMongoUri()) {
     return DEFAULT_PROFILE(userId, email);
   }
 
@@ -150,7 +151,7 @@ export async function saveUserProfileToDb(
     updatedAt: new Date(),
   };
 
-  if (!process.env.MONGODB_URI) {
+  if (!hasMongoUri()) {
     return doc;
   }
 
@@ -172,7 +173,7 @@ export async function saveUserProfileToDb(
 }
 
 export async function loadBookmarksFromDb(userId: string): Promise<string[] | null> {
-  if (!process.env.MONGODB_URI) return [];
+  if (!hasMongoUri()) return [];
 
   try {
     const client = await clientPromise;
@@ -193,7 +194,7 @@ export async function saveBookmarksToDb(
   userId: string,
   bookmarks: string[],
 ): Promise<{ ok: true; bookmarks: string[] } | { ok: false; error: string }> {
-  if (!process.env.MONGODB_URI) {
+  if (!hasMongoUri()) {
     return { ok: false, error: '資料庫未設定' };
   }
 
@@ -215,7 +216,7 @@ export async function toggleBookmarkInDb(
   userId: string,
   articleId: string,
 ): Promise<{ ok: true; bookmarks: string[] } | { ok: false; error: string }> {
-  if (!process.env.MONGODB_URI) {
+  if (!hasMongoUri()) {
     return { ok: false, error: '資料庫未設定' };
   }
 

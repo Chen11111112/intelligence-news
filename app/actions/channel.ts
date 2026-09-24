@@ -1,6 +1,7 @@
 'use server';
 
 import { toUserFacingAIError } from '@/lib/ai/errors';
+import { assertDeployEnvForAI } from '@/lib/env/runtime';
 import { extractJsonFromText, nimChatCompletion, nimChatJSON, AI_ARTICLE_MAX_CHARS } from '@/lib/ai/nim';
 import { requireAIAuth } from '@/lib/ai/require-auth';
 import { recordAIQuotaUsage, requireAIQuota } from '@/lib/ai/require-quota';
@@ -80,6 +81,7 @@ export async function channelDiscuss(
   const session = await requireAIAuth();
 
   try {
+    assertDeployEnvForAI();
     await requireAIQuota(session.user.id!, articleId);
     await assertBookmarked(articleId, session.user.id!, session.user.email);
     const article = await getNewsById(articleId);
@@ -133,6 +135,7 @@ export async function channelOralFeedback(
   const session = await requireAIAuth();
 
   try {
+    assertDeployEnvForAI();
     if (!transcript.trim()) throw new Error('沒有辨識到語音內容');
     await requireAIQuota(session.user.id!, articleId);
     await assertBookmarked(articleId, session.user.id!, session.user.email);

@@ -1,5 +1,6 @@
 'use server';
 
+import { assertDeployEnvForAI } from '@/lib/env/runtime';
 import { toUserFacingAIError } from '@/lib/ai/errors';
 import { nimChatJSON, AI_ARTICLE_MAX_CHARS, AI_QUIZ_MAX_CHARS } from '@/lib/ai/nim';
 import { requireAIAuth } from '@/lib/ai/require-auth';
@@ -52,6 +53,7 @@ export async function generateSummary(
   const session = await requireAIAuth();
 
   try {
+    assertDeployEnvForAI();
     if (!articleId?.trim()) throw new Error('請提供文章 ID');
     if (!text) throw new Error('請提供文章內容');
 
@@ -91,6 +93,7 @@ export async function generateQuiz(
   const session = await requireAIAuth();
 
   try {
+    assertDeployEnvForAI();
     if (!articleId?.trim()) throw new Error('請提供文章 ID');
     const trimmed = text?.trim();
     if (!trimmed || trimmed.length < 80) {

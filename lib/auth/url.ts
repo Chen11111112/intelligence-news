@@ -1,4 +1,6 @@
-const PRODUCTION_AUTH_URL = 'https://intelligence-news.ntubimdbirc.tw';
+import { readRuntimeEnv } from '@/lib/env/runtime';
+
+const PRODUCTION_AUTH_URL = 'https://intelligence-news.hychen.space';
 
 function normalizeAuthUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
@@ -14,8 +16,8 @@ function normalizeAuthUrl(url: string | undefined): string | undefined {
 
 export function getAuthUrl(): string | undefined {
   const raw =
-    process.env.AUTH_URL ??
-    process.env.NEXTAUTH_URL ??
+    readRuntimeEnv('AUTH_URL') ??
+    readRuntimeEnv('NEXTAUTH_URL') ??
     (process.env.NODE_ENV === 'production' ? PRODUCTION_AUTH_URL : 'http://localhost:3002');
 
   return normalizeAuthUrl(raw);

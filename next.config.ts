@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['mongodb'],
   allowedDevOrigins: ['intelligence-news.hychen.space'],
   // 僅 development；正式 `next start` 不會顯示左下角 Next 圖示
   devIndicators: false,

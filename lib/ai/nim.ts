@@ -1,9 +1,12 @@
 import 'server-only';
+import { readRuntimeEnv } from '@/lib/env/runtime';
 
 /** NTUB LiteLLM（OpenAI 相容）；見 https://chatapi.ntubimdbirc.tw/ */
 const DEFAULT_BASE_URL = 'https://chatapi.ntubimdbirc.tw/v1';
 const DEFAULT_MODEL = 'Gemma4-31B';
 const DEFAULT_TIMEOUT_MS = 120_000;
+/** Vercel Hobby 約 10s；Pro 請設 VERCEL_AI_MAX_TIMEOUT_MS=115000 */
+const VERCEL_DEFAULT_CAP_MS = 9_000;
 /** Gemma 會先產生 reasoning tokens，需預留較大輸出空間 */
 const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
 
@@ -27,27 +30,39 @@ export type NimChatOptions = {
 
 function getNimConfig() {
   const timeoutRaw =
-    process.env.CHATAPI_TIMEOUT_MS?.trim() ||
-    process.env.NVIDIA_NIM_TIMEOUT_MS?.trim();
-  const timeoutMs = timeoutRaw ? Number.parseInt(timeoutRaw, 10) : DEFAULT_TIMEOUT_MS;
+    readRuntimeEnv('CHATAPI_TIMEOUT_MS') || readRuntimeEnv('NVIDIA_NIM_TIMEOUT_MS');
+  let timeoutMs = timeoutRaw ? Number.parseInt(timeoutRaw, 10) : DEFAULT_TIMEOUT_MS;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    timeoutMs = DEFAULT_TIMEOUT_MS;
+  }
+
+  if (process.env.VERCEL) {
+    const vercelCapRaw = readRuntimeEnv('VERCEL_AI_MAX_TIMEOUT_MS');
+    const vercelCap = vercelCapRaw
+      ? Number.parseInt(vercelCapRaw, 10)
+      : VERCEL_DEFAULT_CAP_MS;
+    if (Number.isFinite(vercelCap) && vercelCap > 0) {
+      timeoutMs = Math.min(timeoutMs, vercelCap);
+    }
+  }
 
   return {
     apiKey:
-      process.env.CHATAPI_API_KEY?.trim() ||
-      process.env.AI_API_KEY?.trim() ||
-      process.env.NVIDIA_API_KEY?.trim() ||
-      process.env.NIM_API_KEY?.trim() ||
+      readRuntimeEnv('CHATAPI_API_KEY') ||
+      readRuntimeEnv('AI_API_KEY') ||
+      readRuntimeEnv('NVIDIA_API_KEY') ||
+      readRuntimeEnv('NIM_API_KEY') ||
       '',
     baseUrl: (
-      process.env.CHATAPI_BASE_URL?.trim() ||
-      process.env.NVIDIA_NIM_BASE_URL?.trim() ||
+      readRuntimeEnv('CHATAPI_BASE_URL') ||
+      readRuntimeEnv('NVIDIA_NIM_BASE_URL') ||
       DEFAULT_BASE_URL
     ).replace(/\/+$/, ''),
     model:
-      process.env.CHATAPI_MODEL?.trim() ||
-      process.env.NVIDIA_NIM_MODEL?.trim() ||
+      readRuntimeEnv('CHATAPI_MODEL') ||
+      readRuntimeEnv('NVIDIA_NIM_MODEL') ||
       DEFAULT_MODEL,
-    timeoutMs: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS,
+    timeoutMs,
   };
 }
 
@@ -166,7 +181,13 @@ export async function nimChatCompletion(
 
   if (!response.ok) {
     const errBody = await response.text().catch(() => '');
-    throw new Error(`ChatAPI ${response.status}: ${errBody || response.statusText}`);
+    const detail = errBody || response.statusText;
+    if (response.status === 401) {
+      throw new Error(
+        `ChatAPI 401: 金鑰未被接受（key 長度 ${apiKey.length}）。請確認 Vercel 的 CHATAPI_API_KEY 與本機完全相同、無引號。${detail}`,
+      );
+    }
+    throw new Error(`ChatAPI ${response.status}: ${detail}`);
   }
 
   const data = (await response.json()) as {

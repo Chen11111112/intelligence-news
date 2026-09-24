@@ -20,6 +20,10 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
     return '請在環境變數中設定 CHATAPI_API_KEY';
   }
 
+  if (message === 'MONGODB_URI_MISSING') {
+    return '伺服器未設定 MONGODB_URI，無法使用 AI 功能';
+  }
+
   if (CJK.test(message)) {
     return message;
   }
@@ -45,11 +49,12 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
   }
 
   if (
+    lower.includes('chatapi 401') ||
     lower.includes('401') ||
     lower.includes('unauthenticated') ||
     lower.includes('permission_denied')
   ) {
-    return 'AI 服務驗證失敗，請稍後再試';
+    return 'ChatAPI 回傳 401：Vercel 上的 CHATAPI_API_KEY 可能貼錯、含前後引號或與本機 .env.production 不一致。請在 runtime-check 比對 keyLength，修正後 Redeploy。';
   }
 
   if (

@@ -1,13 +1,14 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import { createAuthAdapter } from '@/lib/auth/mongodb-adapter';
+import { readRuntimeEnv } from '@/lib/env/runtime';
 import { ensureAuthEnv, getAuthUrl, getGoogleRedirectUri } from '@/lib/auth-url';
 
 ensureAuthEnv();
 
 const authUrl = getAuthUrl();
-const googleClientId = process.env.AUTH_GOOGLE_ID?.trim();
-const googleClientSecret = process.env.AUTH_GOOGLE_SECRET?.trim();
+const googleClientId = readRuntimeEnv('AUTH_GOOGLE_ID');
+const googleClientSecret = readRuntimeEnv('AUTH_GOOGLE_SECRET');
 const useSecureCookies = authUrl?.startsWith('https://') ?? process.env.NODE_ENV === 'production';
 
 if (process.env.NODE_ENV !== 'production') {
@@ -36,7 +37,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       allowDangerousEmailAccountLinking: true,
     }),
   ],
-  secret: process.env.AUTH_SECRET,
+  secret: readRuntimeEnv('AUTH_SECRET'),
   trustHost: true,
   basePath: '/api/auth',
   pages: {
