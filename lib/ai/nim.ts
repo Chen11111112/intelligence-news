@@ -1,9 +1,12 @@
 import 'server-only';
 import { readRuntimeEnv } from '@/lib/env/runtime';
+import {
+  assertChatApiKey,
+  getChatApiBaseUrl,
+  getChatApiKey,
+  getChatApiModel,
+} from '@/lib/ai/chatapi-config';
 
-/** NTUB LiteLLM（OpenAI 相容）；見 https://chatapi.ntubimdbirc.tw/ */
-const DEFAULT_BASE_URL = 'https://chatapi.ntubimdbirc.tw/v1';
-const DEFAULT_MODEL = 'Gemma4-31B';
 const DEFAULT_TIMEOUT_MS = 120_000;
 /** Vercel Hobby 約 10s；Pro 請設 VERCEL_AI_MAX_TIMEOUT_MS=115000 */
 const VERCEL_DEFAULT_CAP_MS = 9_000;
@@ -47,29 +50,15 @@ function getNimConfig() {
   }
 
   return {
-    apiKey:
-      readRuntimeEnv('CHATAPI_API_KEY') ||
-      readRuntimeEnv('AI_API_KEY') ||
-      readRuntimeEnv('NVIDIA_API_KEY') ||
-      readRuntimeEnv('NIM_API_KEY') ||
-      '',
-    baseUrl: (
-      readRuntimeEnv('CHATAPI_BASE_URL') ||
-      readRuntimeEnv('NVIDIA_NIM_BASE_URL') ||
-      DEFAULT_BASE_URL
-    ).replace(/\/+$/, ''),
-    model:
-      readRuntimeEnv('CHATAPI_MODEL') ||
-      readRuntimeEnv('NVIDIA_NIM_MODEL') ||
-      DEFAULT_MODEL,
+    apiKey: getChatApiKey(),
+    baseUrl: getChatApiBaseUrl(),
+    model: getChatApiModel(),
     timeoutMs,
   };
 }
 
 export function assertNimApiKey(): void {
-  if (!getNimConfig().apiKey) {
-    throw new Error('CHATAPI_API_KEY_MISSING');
-  }
+  assertChatApiKey();
 }
 
 export function extractJsonFromText(text: string): string {
@@ -184,7 +173,12 @@ export async function nimChatCompletion(
     const detail = errBody || response.statusText;
     if (response.status === 401) {
       throw new Error(
-        `ChatAPI 401: 金鑰未被接受（key 長度 ${apiKey.length}）。請確認 Vercel 的 CHATAPI_API_KEY 與本機完全相同、無引號。${detail}`,
+        `ChatAPI 401: 金鑰未被接受（key 長度 ${apiKey.length}）。${detail}`,
+      );
+    }
+    if (response.status === 403) {
+      throw new Error(
+        `ChatAPI 403: 來源 IP 或網域可能遭 ChatAPI 拒絕（常見於 Vercel 直連）。請改以 CHATAPI_BASE_URL 指向可直連的中繼，見 .env.example。${detail}`,
       );
     }
     throw new Error(`ChatAPI ${response.status}: ${detail}`);

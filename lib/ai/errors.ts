@@ -48,13 +48,19 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
     return 'AI API 金鑰無效或未設定，請聯繫管理員';
   }
 
+  if (lower.includes('chatapi 403') || (lower.includes('chatapi') && lower.includes('403'))) {
+    return 'ChatAPI 拒絕此伺服器來源（403）。Vercel 常無法直連 NTUB ChatAPI，請改設 CHATAPI_BASE_URL 為可直連的中繼網址（見 .env.example），中繼上保留真正的 sk- 金鑰。';
+  }
+
+  if (lower.includes('chatapi 401')) {
+    return 'ChatAPI 401：若使用中繼，Vercel 的 CHATAPI_API_KEY 應為 CRAWL_API_SECRET；直連時須與本機 sk- 金鑰一致。請用 runtime-check 比對 keyFingerprint。';
+  }
+
   if (
-    lower.includes('chatapi 401') ||
-    lower.includes('401') ||
     lower.includes('unauthenticated') ||
     lower.includes('permission_denied')
   ) {
-    return 'ChatAPI 回傳 401：Vercel 上的 CHATAPI_API_KEY 可能貼錯、含前後引號或與本機 .env.production 不一致。請在 runtime-check 比對 keyLength，修正後 Redeploy。';
+    return 'AI 服務驗證失敗，請稍後再試';
   }
 
   if (
@@ -68,7 +74,7 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
   }
 
   if (lower.includes('403') || lower.includes('forbidden')) {
-    return '無權使用 AI 服務，請確認 API 設定';
+    return '無權使用 AI 服務，請確認 API 或中繼設定';
   }
 
   if (lower.includes('404') || lower.includes('not found') || lower.includes('model')) {

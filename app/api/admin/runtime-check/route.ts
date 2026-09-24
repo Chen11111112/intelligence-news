@@ -1,41 +1,98 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRuntimeEnvPresence, readRuntimeEnv } from '@/lib/env/runtime';
+import {
+  getChatApiBaseUrl,
+  getChatApiKey,
+  getChatApiKeyFingerprint,
+  getChatApiModel,
+  isChatApiRelayClient,
+} from '@/lib/ai/chatapi-config';
+import { getRuntimeEnvPresence } from '@/lib/env/runtime';
 import { pingMongo } from '@/lib/db';
+import { readRuntimeEnv } from '@/lib/env/runtime';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-async function probeChatApi(): Promise<{
+type ProbeResult = {
   ok: boolean;
   status: number;
   keyLength: number;
+  keyFingerprint: string | null;
   baseUrl: string;
   model: string;
-}> {
-  const apiKey = readRuntimeEnv('CHATAPI_API_KEY');
-  const baseUrl = (
-    readRuntimeEnv('CHATAPI_BASE_URL') ?? 'https://chatapi.ntubimdbirc.tw/v1'
-  ).replace(/\/+$/, '');
-  const model = readRuntimeEnv('CHATAPI_MODEL') ?? 'Gemma4-31B';
+  relayClient: boolean;
+  bodyPreview?: string;
+};
+
+async function probePath(
+  method: 'GET' | 'POST',
+  path: string,
+  postBody?: Record<string, unknown>,
+): Promise<Pick<ProbeResult, 'ok' | 'status' | 'bodyPreview'>> {
+  const apiKey = getChatApiKey();
+  const baseUrl = getChatApiBaseUrl();
   if (!apiKey) {
-    return { ok: false, status: 0, keyLength: 0, baseUrl, model };
+    return { ok: false, status: 0 };
   }
 
   try {
-    const response = await fetch(`${baseUrl}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(8_000),
-    });
+    const init: RequestInit = {
+      method,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(12_000),
+    };
+    if (postBody) init.body = JSON.stringify(postBody);
+
+    const response = await fetch(`${baseUrl}/${path}`, init);
+    const text = await response.text().catch(() => '');
     return {
       ok: response.ok,
       status: response.status,
-      keyLength: apiKey.length,
-      baseUrl,
-      model,
+      bodyPreview: text.slice(0, 280),
     };
   } catch {
-    return { ok: false, status: -1, keyLength: apiKey.length, baseUrl, model };
+    return { ok: false, status: -1 };
   }
+}
+
+async function probeChatApi(): Promise<{
+  models: ProbeResult;
+  chatCompletions: ProbeResult;
+}> {
+  const apiKey = getChatApiKey();
+  const baseUrl = getChatApiBaseUrl();
+  const model = getChatApiModel();
+  const keyLength = apiKey.length;
+  const keyFingerprint = getChatApiKeyFingerprint();
+  const relayClient = isChatApiRelayClient();
+
+  const base: Omit<ProbeResult, 'ok' | 'status' | 'bodyPreview'> = {
+    keyLength,
+    keyFingerprint,
+    baseUrl,
+    model,
+    relayClient,
+  };
+
+  if (!apiKey) {
+    const empty = { ...base, ok: false, status: 0 };
+    return { models: empty, chatCompletions: empty };
+  }
+
+  const modelsProbe = await probePath('GET', 'models');
+  const chatProbe = await probePath('POST', 'chat/completions', {
+    model,
+    messages: [{ role: 'user', content: 'ping' }],
+    max_tokens: 3,
+  });
+
+  return {
+    models: { ...base, ...modelsProbe },
+    chatCompletions: { ...base, ...chatProbe },
+  };
 }
 
 function authorized(request: NextRequest): boolean {
@@ -56,14 +113,24 @@ export async function GET(request: NextRequest) {
   const env = getRuntimeEnvPresence();
   const mongoOk = env.MONGODB_URI ? await pingMongo() : false;
   const chatApi = await probeChatApi();
+  const aiOk =
+    env.CHATAPI_API_KEY &&
+    chatApi.chatCompletions.ok &&
+    env.MONGODB_URI &&
+    mongoOk;
 
   return NextResponse.json({
-    ok: env.CHATAPI_API_KEY && chatApi.ok && env.MONGODB_URI && mongoOk,
+    ok: aiOk,
     vercel: !!process.env.VERCEL,
     vercelEnv: process.env.VERCEL_ENV ?? null,
     env,
     mongoPing: mongoOk,
     chatApi,
-    localReferenceKeyLength: 25,
+    hint:
+      chatApi.models.status === 403 || chatApi.chatCompletions.status === 403
+        ? 'ChatAPI 可能封鎖 Vercel 出口 IP；請用中繼 CHATAPI_BASE_URL（.env.example）'
+        : chatApi.chatCompletions.status === 401
+          ? '401 且 keyLength 正確時，常為 Vercel 上的 key 與本機 fingerprint 不同'
+          : null,
   });
 }
