@@ -123,11 +123,34 @@ export async function GET(request: NextRequest) {
     env.MONGODB_URI &&
     mongoOk;
 
+  const cfAccess = hasCloudflareAccessServiceToken();
+  const cloudflareBlocked =
+    describeChatApiBlock(
+      chatApi.chatCompletions.status,
+      chatApi.chatCompletions.bodyPreview ?? '',
+      chatApi.chatCompletions.baseUrl,
+    )?.includes('Cloudflare') ?? false;
+
+  const nextSteps: string[] | null =
+    cloudflareBlocked && process.env.VERCEL
+      ? cfAccess
+        ? [
+            '已設定 CF Access 仍 403：確認 Zero Trust Application 網域為 chatapi-relay.hychen.space、Policy 只 Allow 該 Service Token',
+            'Security → Bots 暫時關 Bot Fight 測試是否為唯一原因',
+          ]
+        : [
+            'Zero Trust → Service auth → 建立 Service Token',
+            'Access → Applications → Self-hosted → chatapi-relay.hychen.space → Policy Allow 該 Token',
+            'Vercel 新增 CHATAPI_CF_ACCESS_CLIENT_ID、CHATAPI_CF_ACCESS_CLIENT_SECRET 後 Redeploy',
+          ]
+      : null;
+
   return NextResponse.json({
     ok: aiOk,
     vercel: !!process.env.VERCEL,
     vercelEnv: process.env.VERCEL_ENV ?? null,
-    cfAccessServiceToken: hasCloudflareAccessServiceToken(),
+    cfAccessServiceToken: cfAccess,
+    nextSteps,
     env,
     mongoPing: mongoOk,
     chatApi,
@@ -140,11 +163,6 @@ export async function GET(request: NextRequest) {
       (chatApi.chatCompletions.status === 401
         ? '401 且 keyLength 正確時，常為 Vercel 上的 key 與本機 fingerprint 不同'
         : null),
-    cloudflareBlocked:
-      describeChatApiBlock(
-        chatApi.chatCompletions.status,
-        chatApi.chatCompletions.bodyPreview ?? '',
-        chatApi.chatCompletions.baseUrl,
-      )?.includes('Cloudflare') ?? false,
+    cloudflareBlocked,
   });
 }
