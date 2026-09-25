@@ -48,20 +48,12 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
     return 'AI API 金鑰無效或未設定，請聯繫管理員';
   }
 
-  if (
-    lower.includes('cloudflare') ||
-    lower.includes('just a moment') ||
-    (lower.includes('chatapi 403') && lower.includes('cloudflare'))
-  ) {
-    return 'ChatAPI 前方 Cloudflare 擋住 Vercel 的伺服器請求。請用中繼：中繼主機直連 ChatAPI，Vercel 的 CHATAPI_BASE_URL 指到中繼 /api/ai/upstream/v1。';
-  }
-
   if (lower.includes('chatapi 403') || (lower.includes('chatapi') && lower.includes('403'))) {
-    return 'ChatAPI 拒絕此伺服器來源（403）。請改設 CHATAPI_BASE_URL 為中繼網址（.env.example），sk- 金鑰只放在中繼主機。';
+    return 'ChatAPI 拒絕此請求（403），請稍後再試';
   }
 
   if (lower.includes('chatapi 401')) {
-    return 'ChatAPI 401：若使用中繼，Vercel 的 CHATAPI_API_KEY 應為 CRAWL_API_SECRET；直連時須與本機 sk- 金鑰一致。請用 runtime-check 比對 keyFingerprint。';
+    return 'ChatAPI 金鑰未被接受，請確認 CHATAPI_API_KEY';
   }
 
   if (
@@ -82,7 +74,7 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
   }
 
   if (lower.includes('403') || lower.includes('forbidden')) {
-    return '無權使用 AI 服務，請確認 API 或中繼設定';
+    return '無權使用 AI 服務，請確認 API 金鑰';
   }
 
   if (lower.includes('404') || lower.includes('not found') || lower.includes('model')) {

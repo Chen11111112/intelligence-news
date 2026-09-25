@@ -9,8 +9,7 @@
     "lint": "eslint",
     "crawl": "python scripts/crawl_news.py",
     "crawl:watch": "python scripts/crawl_scheduler.py",
-    "crawl:setup": "pip install -r scripts/requirements.txt",
-    "relay": "node scripts/chatapi-standalone-relay.mjs"
+    "crawl:setup": "pip install -r scripts/requirements.txt"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.2",

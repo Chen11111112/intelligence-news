@@ -1,7 +1,0 @@
-name = "chatapi-relay"
-main = "worker.js"
-compatibility_date = "2024-08-01"
-
-# 部署：cd cloudflare/chatapi-relay && npx wrangler deploy
-# Secret：wrangler secret put CHATAPI_API_KEY
-#         wrangler secret put RELAY_SECRET

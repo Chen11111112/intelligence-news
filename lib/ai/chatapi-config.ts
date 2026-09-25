@@ -38,13 +38,6 @@ export function getChatApiModel(): string {
   );
 }
 
-/** 是否經中繼（非直連 NTUB ChatAPI） */
-export function isChatApiRelayClient(): boolean {
-  const base = getChatApiBaseUrl().replace(/\/+$/, '');
-  const direct = CHATAPI_UPSTREAM_DEFAULT.replace(/\/+$/, '');
-  return base !== direct;
-}
-
 export function assertChatApiKey(): void {
   if (!getChatApiKey()) {
     throw new Error('CHATAPI_API_KEY_MISSING');
