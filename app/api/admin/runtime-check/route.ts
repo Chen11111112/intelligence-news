@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { describeChatApiBlock } from '@/lib/ai/chatapi-block';
+import { getChatApiRequestHeaders } from '@/lib/ai/chatapi-fetch';
 import {
   getChatApiBaseUrl,
   getChatApiKey,
@@ -38,10 +40,9 @@ async function probePath(
   try {
     const init: RequestInit = {
       method,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getChatApiRequestHeaders(
+        method === 'POST' ? { 'Content-Type': 'application/json' } : {},
+      ),
       signal: AbortSignal.timeout(12_000),
     };
     if (postBody) init.body = JSON.stringify(postBody);
@@ -127,10 +128,19 @@ export async function GET(request: NextRequest) {
     mongoPing: mongoOk,
     chatApi,
     hint:
-      chatApi.models.status === 403 || chatApi.chatCompletions.status === 403
-        ? 'ChatAPI 可能封鎖 Vercel 出口 IP；請用中繼 CHATAPI_BASE_URL（.env.example）'
-        : chatApi.chatCompletions.status === 401
-          ? '401 且 keyLength 正確時，常為 Vercel 上的 key 與本機 fingerprint 不同'
-          : null,
+      describeChatApiBlock(
+        chatApi.chatCompletions.status,
+        chatApi.chatCompletions.bodyPreview ?? '',
+        chatApi.chatCompletions.baseUrl,
+      ) ??
+      (chatApi.chatCompletions.status === 401
+        ? '401 且 keyLength 正確時，常為 Vercel 上的 key 與本機 fingerprint 不同'
+        : null),
+    cloudflareBlocked:
+      describeChatApiBlock(
+        chatApi.chatCompletions.status,
+        chatApi.chatCompletions.bodyPreview ?? '',
+        chatApi.chatCompletions.baseUrl,
+      )?.includes('Cloudflare') ?? false,
   });
 }

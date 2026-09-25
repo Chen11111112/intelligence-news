@@ -1,11 +1,13 @@
 import 'server-only';
 import { readRuntimeEnv } from '@/lib/env/runtime';
+import { isCloudflareChallengeBody } from '@/lib/ai/chatapi-block';
 import {
   assertChatApiKey,
   getChatApiBaseUrl,
   getChatApiKey,
   getChatApiModel,
 } from '@/lib/ai/chatapi-config';
+import { getChatApiRequestHeaders } from '@/lib/ai/chatapi-fetch';
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 /** Vercel Hobby 約 10s；Pro 請設 VERCEL_AI_MAX_TIMEOUT_MS=115000 */
@@ -154,10 +156,7 @@ export async function nimChatCompletion(
   try {
     response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getChatApiRequestHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(options?.timeoutMs ?? timeoutMs),
     });
@@ -177,8 +176,13 @@ export async function nimChatCompletion(
       );
     }
     if (response.status === 403) {
+      if (isCloudflareChallengeBody(detail)) {
+        throw new Error(
+          'ChatAPI 403: Cloudflare 機器人驗證擋住 Vercel 直連。請在 Vercel 改設 CHATAPI_BASE_URL 為中繼網址 /api/ai/upstream/v1，CHATAPI_API_KEY 改為 CRAWL_API_SECRET（sk- 只留在中繼主機）。',
+        );
+      }
       throw new Error(
-        `ChatAPI 403: 來源 IP 或網域可能遭 ChatAPI 拒絕（常見於 Vercel 直連）。請改以 CHATAPI_BASE_URL 指向可直連的中繼，見 .env.example。${detail}`,
+        `ChatAPI 403: 來源遭拒絕。請改以 CHATAPI_BASE_URL 指向中繼，見 .env.example。${detail.slice(0, 120)}`,
       );
     }
     throw new Error(`ChatAPI ${response.status}: ${detail}`);

@@ -38,10 +38,11 @@ export function getChatApiModel(): string {
   );
 }
 
-/** 是否經由本 app 的 /api/ai/upstream 中繼（Vercel 無法直連 ChatAPI 時） */
+/** 是否經中繼（非直連 NTUB ChatAPI） */
 export function isChatApiRelayClient(): boolean {
-  const base = getChatApiBaseUrl();
-  return base.includes('/api/ai/upstream');
+  const base = getChatApiBaseUrl().replace(/\/+$/, '');
+  const direct = CHATAPI_UPSTREAM_DEFAULT.replace(/\/+$/, '');
+  return base !== direct;
 }
 
 export function assertChatApiKey(): void {

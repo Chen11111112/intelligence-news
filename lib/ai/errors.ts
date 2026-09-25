@@ -48,8 +48,16 @@ export function getAIErrorMessage(error: unknown, fallback: string): string {
     return 'AI API 金鑰無效或未設定，請聯繫管理員';
   }
 
+  if (
+    lower.includes('cloudflare') ||
+    lower.includes('just a moment') ||
+    (lower.includes('chatapi 403') && lower.includes('cloudflare'))
+  ) {
+    return 'ChatAPI 前方 Cloudflare 擋住 Vercel 的伺服器請求。請用中繼：中繼主機直連 ChatAPI，Vercel 的 CHATAPI_BASE_URL 指到中繼 /api/ai/upstream/v1。';
+  }
+
   if (lower.includes('chatapi 403') || (lower.includes('chatapi') && lower.includes('403'))) {
-    return 'ChatAPI 拒絕此伺服器來源（403）。Vercel 常無法直連 NTUB ChatAPI，請改設 CHATAPI_BASE_URL 為可直連的中繼網址（見 .env.example），中繼上保留真正的 sk- 金鑰。';
+    return 'ChatAPI 拒絕此伺服器來源（403）。請改設 CHATAPI_BASE_URL 為中繼網址（.env.example），sk- 金鑰只放在中繼主機。';
   }
 
   if (lower.includes('chatapi 401')) {
