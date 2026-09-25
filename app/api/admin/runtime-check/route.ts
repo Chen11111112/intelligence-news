@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { describeChatApiBlock } from '@/lib/ai/chatapi-block';
-import { getChatApiRequestHeaders } from '@/lib/ai/chatapi-fetch';
+import {
+  getChatApiRequestHeaders,
+  hasCloudflareAccessServiceToken,
+} from '@/lib/ai/chatapi-fetch';
 import {
   getChatApiBaseUrl,
   getChatApiKey,
@@ -124,6 +127,7 @@ export async function GET(request: NextRequest) {
     ok: aiOk,
     vercel: !!process.env.VERCEL,
     vercelEnv: process.env.VERCEL_ENV ?? null,
+    cfAccessServiceToken: hasCloudflareAccessServiceToken(),
     env,
     mongoPing: mongoOk,
     chatApi,

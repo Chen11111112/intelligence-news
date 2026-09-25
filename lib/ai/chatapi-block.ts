@@ -15,8 +15,11 @@ export function describeChatApiBlock(
   baseUrl?: string,
 ): string | null {
   if (status === 403 && isCloudflareChallengeBody(bodyPreview)) {
-    if (baseUrl?.includes('workers.dev')) {
-      return 'Vercel 無法通過 Cloudflare 對 *.workers.dev 的機器人驗證（本機 curl 仍可能成功）。請替 Worker 綁自訂網域（例如 chatapi-relay.hychen.space），Vercel 的 CHATAPI_BASE_URL 改為 https://該網域/v1，並在 Cloudflare 對該 hostname 略過 Bot Fight。見 cloudflare/chatapi-relay/SETUP.md';
+    if (
+      baseUrl?.includes('workers.dev') ||
+      baseUrl?.includes('chatapi-relay.')
+    ) {
+      return '本機 curl 正常但 Vercel 仍 403：Cloudflare 擋資料中心流量。請做 Page Rule（Security Essentially Off）或 Zero Trust Service Token，並在 Vercel 設 CHATAPI_CF_ACCESS_CLIENT_*。見 cloudflare/chatapi-relay/SETUP.md';
     }
     return 'Cloudflare 機器人驗證（Just a moment…）擋住 Vercel 直連 ChatAPI；請用中繼或自訂 Worker 網域';
   }
