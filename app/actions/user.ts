@@ -3,7 +3,6 @@
 import { auth } from '@/app/auth';
 import type { ExamTarget, Topic } from '@/lib/types/data';
 import { persistCrawlTags } from '@/lib/crawl/config';
-import { DEFAULT_UI_LOCALE, type UILocale } from '@/lib/i18n/locale';
 import { isValidTagSlug } from '@/lib/tags/selectable';
 import type { AISummaryCacheEntry, AISummariesCache } from '@/lib/ai/summaries';
 import type { AIQuizCacheEntry, AIQuizzesCache } from '@/lib/ai/quizzes';
@@ -27,7 +26,6 @@ import {
 export type ProfilePayload = {
   examType: ExamTarget;
   examScores: ExamScores;
-  uiLocale: UILocale;
   topicPreferences: Topic[];
   tagPreferences: string[];
   bookmarks: string[];
@@ -77,7 +75,6 @@ export async function persistUserProfile(
       {
         examType: payload.examType,
         examScores: payload.examScores,
-        uiLocale: DEFAULT_UI_LOCALE,
         tagPreferences,
         topicPreferences: topics,
         bookmarks: payload.bookmarks,

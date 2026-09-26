@@ -1,5 +1,4 @@
 import type { ExamTarget, Topic } from '@/lib/types/data';
-import { DEFAULT_UI_LOCALE } from '@/lib/i18n/locale';
 import { normalizeTopic } from '@/lib/tags/normalize';
 import { TOPICS } from '@/lib/tags/topics';
 import {
@@ -73,7 +72,6 @@ export function loadUserSettings(): UserSettings {
       tagPreferences: defaultTags,
       bookmarks: [],
       aiUsage: { date: todayKey(), articleIds: [] },
-      uiLocale: DEFAULT_UI_LOCALE,
     };
   }
 
@@ -96,10 +94,11 @@ export function loadUserSettings(): UserSettings {
         return legacy.map((t) => TOPICS.find((x) => x.topic === t)?.slug).filter((s): s is string => !!s);
       })();
 
+  localStorage.removeItem('user_ui_locale');
+
   return {
     examType: ['IELTS', 'TOEFL', 'TOEIC'].includes(examType) ? examType : 'IELTS',
     examScores,
-    uiLocale: DEFAULT_UI_LOCALE,
     tagPreferences,
     topicPreferences: tagSlugsToTopics(tagPreferences),
     bookmarks: parseBookmarks(localStorage.getItem(STORAGE_KEYS.bookmarks)),
@@ -109,7 +108,7 @@ export function loadUserSettings(): UserSettings {
 
 export function saveUserSettings(partial: Partial<UserSettings>): UserSettings {
   const current = loadUserSettings();
-  const next = { ...current, ...partial, uiLocale: DEFAULT_UI_LOCALE };
+  const next = { ...current, ...partial };
 
   if (partial.tagPreferences) {
     next.tagPreferences = partial.tagPreferences;
@@ -127,7 +126,7 @@ export function saveUserSettings(partial: Partial<UserSettings>): UserSettings {
   localStorage.setItem(STORAGE_KEYS.topicPreferences, JSON.stringify(next.topicPreferences));
   localStorage.setItem(STORAGE_KEYS.bookmarks, JSON.stringify(next.bookmarks));
   localStorage.setItem(STORAGE_KEYS.aiUsage, JSON.stringify(next.aiUsage));
-  localStorage.setItem(STORAGE_KEYS.uiLocale, next.uiLocale);
+  localStorage.removeItem('user_ui_locale');
 
   window.dispatchEvent(new Event('user-settings-updated'));
   return next;

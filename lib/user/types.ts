@@ -3,7 +3,6 @@ import { getConversationTag } from '@/lib/tags/conversation';
 import { articleMatchesSelectedTags } from '@/lib/tags/normalize';
 import { TOPICS } from '@/lib/tags/topics';
 import { isValidTagSlug } from '@/lib/tags/selectable';
-import type { UILocale } from '@/lib/i18n/locale';
 
 export const STORAGE_KEYS = {
   examType: 'user_exam_type',
@@ -12,7 +11,6 @@ export const STORAGE_KEYS = {
   tagPreferences: 'user_tag_preferences',
   bookmarks: 'user_bookmarks',
   aiUsage: 'user_ai_usage',
-  uiLocale: 'user_ui_locale',
 } as const;
 
 export const DAILY_AI_ARTICLES = 3;
@@ -37,7 +35,6 @@ export interface AIUsageRecord {
 export interface UserSettings {
   examType: ExamTarget;
   examScores: ExamScores;
-  uiLocale: UILocale;
   /** @deprecated 由 tagPreferences 衍生，保留相容 */
   topicPreferences: Topic[];
   tagPreferences: string[];

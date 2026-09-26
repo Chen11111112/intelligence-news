@@ -11,7 +11,6 @@ import {
   validateQuizQuestions,
   type AISummary,
 } from '@/lib/data';
-import { getLocaleAIName } from '@/lib/locale';
 
 const QUIZ_JSON_SCHEMA: Record<string, unknown> = {
   type: 'object',
@@ -59,7 +58,6 @@ export async function generateSummary(
 
     await requireAIQuota(session.user.id!, articleId);
 
-    const localeName = getLocaleAIName();
     const trimmed = text.slice(0, AI_ARTICLE_MAX_CHARS);
     const systemPrompt = `You are an academic English tutor. Return ONLY valid JSON, no markdown fences or extra text.`;
     const userPrompt = `Act as an academic English tutor for ${buildExamPrompt(examType, examScore)}.
@@ -68,9 +66,9 @@ Use Traditional Chinese (Taiwan) for summary_local and key_points_local.
 
 Return JSON with these fields:
 - "summary_en": 2-3 concise paragraphs in academic English appropriate for the learner level
-- "summary_local": translation/explanation in ${localeName} for the learner
+- "summary_local": translation/explanation in Traditional Chinese for the learner
 - "key_points_en": array of 3-5 bullet-point takeaways in English
-- "key_points_local": array of 3-5 bullet-point takeaways in ${localeName} (same order as key_points_en)
+- "key_points_local": array of 3-5 bullet-point takeaways in Traditional Chinese (same order as key_points_en)
 
 Text: ${trimmed}`;
 
@@ -102,12 +100,11 @@ export async function generateQuiz(
 
     await requireAIQuota(session.user.id!, articleId);
 
-    const localeName = getLocaleAIName();
     const articleExcerpt = trimmed.slice(0, AI_QUIZ_MAX_CHARS);
     const systemPrompt =
       'You are an academic English tutor. Return ONLY valid JSON with a "questions" array of exactly 3 objects. No markdown.';
     const userPrompt = `Create a 3-question vocabulary quiz for ${buildExamPrompt(examType, examScore)}.
-Pick academic words from the article. Each question needs: question (English), locale_hint (${localeName}), options (4 English strings), correct_index (0-3), explanation (${localeName}).
+Pick academic words from the article. Each question needs: question (English), locale_hint (Traditional Chinese), options (4 English strings), correct_index (0-3), explanation (Traditional Chinese).
 
 Return this exact shape:
 ${QUIZ_EXAMPLE}

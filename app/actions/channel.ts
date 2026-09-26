@@ -12,7 +12,6 @@ import {
   filterOralCorrections,
   normalizeOralCorrectionItem,
 } from '@/lib/news/channel';
-import { getLocaleAIInstructions, getLocaleAIName } from '@/lib/locale';
 import { getNewsById } from '@/lib/news';
 import { getUserProfileFromDb } from '@/lib/user-profile-db';
 
@@ -87,15 +86,13 @@ export async function channelDiscuss(
     const article = await getNewsById(articleId);
     if (!article) throw new Error('找不到文章');
 
-    const localeName = getLocaleAIName();
-    const localeInstructions = getLocaleAIInstructions();
     const articleText = getArticleText(article).slice(0, AI_ARTICLE_MAX_CHARS);
     const history = formatHistory(messages);
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
 
     const systemPrompt = `You are a friendly English tutor helping a learner discuss a news article (${buildExamPrompt(examType, examScore)}).
-${localeInstructions}
-Reply in English (2-4 short paragraphs). You may add brief clarifications in ${localeName} when explaining difficult vocabulary or concepts.
+Write all non-English learner fields in Traditional Chinese.
+Reply in English (2-4 short paragraphs). You may add brief clarifications in Traditional Chinese when explaining difficult vocabulary or concepts.
 Encourage the learner to share opinions and ask follow-up questions in English.`;
 
     const userPrompt = `Article title: ${article.titleEn}
@@ -143,16 +140,14 @@ export async function channelOralFeedback(
     const article = await getNewsById(articleId);
     if (!article) throw new Error('找不到文章');
 
-    const localeName = getLocaleAIName();
-    const localeInstructions = getLocaleAIInstructions();
     const articleText = getArticleText(article).slice(0, AI_ARTICLE_MAX_CHARS);
     const history = formatHistory(messages);
 
     const systemPrompt = `You are a warm, supportive English speaking coach for ${buildExamPrompt(examType, examScore)}.
-${localeInstructions}
+Write all non-English learner fields in Traditional Chinese.
 Return ONLY valid JSON: reply (string), corrected_sentence (string, optional), corrections (array, max 2 items).
 Each correction: {original, suggestion, type, explanation}. type: grammar | pronunciation | vocabulary | fluency.
-Write explanation in ${localeName}.
+Write explanation in Traditional Chinese.
 
 Coaching style:
 - Be encouraging. Start reply by acknowledging what the learner expressed well.

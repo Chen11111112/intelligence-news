@@ -3,7 +3,6 @@ import clientPromise from '@/lib/db';
 import { hasMongoUri } from '@/lib/env/runtime';
 import type { AISummariesCache, AISummaryCacheEntry } from '@/lib/ai/summaries';
 import type { AIQuizzesCache, AIQuizCacheEntry } from '@/lib/ai/quizzes';
-import { DEFAULT_UI_LOCALE, type UILocale } from '@/lib/i18n/locale';
 import type { AIUsageRecord, ExamScores } from '@/lib/user/types';
 import { getDefaultTagPreferences, tagSlugsToTopics, todayKey, clampTagPreferences } from '@/lib/user/types';
 
@@ -12,7 +11,6 @@ export interface UserProfileDocument {
   email?: string | null;
   examType: ExamTarget;
   examScores: ExamScores;
-  uiLocale: UILocale;
   topicPreferences: Topic[];
   tagPreferences: string[];
   bookmarks: string[];
@@ -42,7 +40,6 @@ export function toUserProfileClient(
     email: doc.email,
     examType: doc.examType,
     examScores: doc.examScores,
-    uiLocale: doc.uiLocale,
     topicPreferences: doc.topicPreferences,
     tagPreferences: doc.tagPreferences,
     bookmarks: doc.bookmarks,
@@ -60,7 +57,6 @@ const DEFAULT_PROFILE = (userId: string, email?: string | null): UserProfileDocu
   email,
   examType: 'IELTS',
   examScores: { TOEIC: '850', IELTS: '7.5', TOEFL: '100' },
-  uiLocale: DEFAULT_UI_LOCALE,
   tagPreferences: getDefaultTagPreferences(),
   topicPreferences: tagSlugsToTopics(getDefaultTagPreferences()),
   bookmarks: [],
@@ -119,9 +115,10 @@ export async function getUserProfileFromDb(
           : getDefaultTagPreferences(),
     );
 
-    const { plan: _plan, _id: _mongoId, ...rest } = existing as UserProfileDocument & {
+    const { plan: _plan, _id: _mongoId, uiLocale: _uiLocale, ...rest } = existing as UserProfileDocument & {
       plan?: string;
       _id?: unknown;
+      uiLocale?: string;
     };
 
     return {
@@ -129,7 +126,6 @@ export async function getUserProfileFromDb(
       ...rest,
       tagPreferences,
       topicPreferences: tagSlugsToTopics(tagPreferences),
-      uiLocale: DEFAULT_UI_LOCALE,
       aiUsage: usage,
     };
   }
@@ -165,7 +161,7 @@ export async function saveUserProfileToDb(
   const db = client.db();
   await db.collection(COLLECTION).updateOne(
     { userId },
-    { $set: doc, $unset: { plan: '' } },
+    { $set: doc, $unset: { plan: '', uiLocale: '' } },
     { upsert: true },
   );
 

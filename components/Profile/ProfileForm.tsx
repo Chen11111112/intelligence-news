@@ -29,7 +29,6 @@ import { cn } from '@/lib/utils';
 import { clampTagPreferences, getDailyAILimit, getMaxTags, tagSlugsToTopics, type ExamScores } from '@/lib/user';
 import type { UserProfileClient } from '@/lib/user/profile-db';
 import { mergeAISummariesFromCloud } from '@/lib/ai-summaries';
-import { DEFAULT_UI_LOCALE } from '@/lib/locale';
 import type { Session } from 'next-auth';
 import LogoutButton from '../LogoutButton';
 
@@ -120,7 +119,6 @@ export default function ProfileForm({
     const nextSettings = {
       examType: activeExam,
       examScores: scores,
-      uiLocale: DEFAULT_UI_LOCALE,
       tagPreferences: tags,
       topicPreferences: tagSlugsToTopics(tags),
       bookmarks: settings?.bookmarks ?? [],

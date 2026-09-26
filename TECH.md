@@ -125,7 +125,7 @@ news_app/
 │   ├── auth/               # Auth URL 正規化
 │   ├── crawl/              # 爬蟲設定與執行
 │   ├── db/                 # MongoDB 連線
-│   ├── i18n/               # 介面文案
+│   ├── copy.ts             # 介面文案
 │   ├── news/               # 新聞讀取、持久化、快照
 │   ├── tags/               # 標籤 / 主題對應
 │   ├── user/               # 使用者設定、用量限制
@@ -284,7 +284,6 @@ interface UserProfileDocument {
   email?: string | null;
   examType: 'IELTS' | 'TOEFL' | 'TOEIC';
   examScores: { TOEIC: string; IELTS: string; TOEFL: string };
-  uiLocale: 'zh-TW';
   tagPreferences: string[];      // slug，如 'arts', 'business'
   topicPreferences: Topic[];     // 衍生欄位，保留相容
   bookmarks: string[];           // article id
@@ -436,7 +435,7 @@ curl -X POST -H "Authorization: Bearer $CRAWL_API_SECRET" \
 - **Channel 討論**（`channelDiscuss`）：僅限已收藏文章
 - **口說回饋**（`channelOralFeedback`）：語音練習評分與建議
 
-Prompt 會帶入使用者 `examType` 與 `examScores`，並以 `getLocaleAIInstructions()` 指定繁體中文在地化。結構化回應（JSON）透過 prompt 要求模型輸出，並以 `extractJsonFromText()` 解析。
+Prompt 會帶入使用者 `examType` 與 `examScores`，非英文學習欄位固定使用繁體中文。結構化回應（JSON）透過 prompt 要求模型輸出，並以 `extractJsonFromText()` 解析。
 
 摘要快取：客戶端 `localStorage`（`user_ai_summaries`）+ 登入後 MongoDB `user_profiles.aiSummaries`。
 
